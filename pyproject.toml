@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "A simulation of the bingo agent"
 authors = ["Aniketh Vijesh"]
 dependencies = [
+    "black>=25.1.0",
     "dotenv>=0.9.9",
     "langchain>=0.3.26",
     "langchain-google-genai>=0.1.0",
