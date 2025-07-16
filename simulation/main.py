@@ -2,15 +2,12 @@ import os
 import time
 import uuid
 from utils.agent_base import AgentBase
-from utils.log_memory import log_conversation
+from utils.log_memory import log_conversation, generate_conversation_id
 
 AGENTS_DIR = os.path.join(os.path.dirname(__file__), "agents_personas")
 OUTPUTS_DIR = os.path.join(os.path.dirname(__file__), "outputs")
-LOG_PATH = os.path.join(OUTPUTS_DIR, "conversation_log_1.json") # TODO Automate this, this should be handled by the log_conversation function
-
-# TODO: Refactor this, it should be handled by another module
-def generate_conversation_id():
-    return str(uuid.uuid4())
+CONVERSATION_ID = generate_conversation_id()
+LOG_PATH = os.path.join(OUTPUTS_DIR, f"conversation_{CONVERSATION_ID}.json")
 
 # Create outputs directory if it doesn't exist
 os.makedirs(OUTPUTS_DIR, exist_ok=True)
@@ -33,7 +30,7 @@ PROMPT_TEMPLATE = (
     "You are {name}. Here is your background: {personality}\n"
     "You are in a conversation with {other_name}.\n"
     "Your task: respond naturally, in character, and keep the conversation going.\n"
-    "IMPORTANT: Keep your response concise (maximum 2-3 sentences).\n"
+    "IMPORTANT: Keep your response concise (maximum 1-2 sentences).\n"
     "If you wish to end your turn, append <END OF EXCHANGE> to your message.\n"
     "If you wish to end the conversation, append <END OF CONVERSATION> to your message.\n"
     "Do not end the conversation unless you feel it is natural to do so.\n"
