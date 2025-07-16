@@ -16,7 +16,7 @@ The project uses [Astral](https://astral.sh/blog/uv) for dependency management.
 pip install uv
 
 # Clone the repository
-git clone <repository-url>
+git clone git@github.com:TheHuntsman4/Bingo-Agent-Simulation.git
 cd bingo_agent_simulation_prototype
 
 # Create and activate virtual environment
@@ -29,7 +29,8 @@ uv pip install -e .
 
 ## Environment Configuration
 
-1. Create a `.env` file in the project root:
+1. Create a `.env` file in the project root. The path should look like this `simulation/.env`:
+
 ```bash
 GOOGLE_API_KEY=your_google_ai_api_key_here
 ```
