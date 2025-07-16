@@ -10,3 +10,4 @@
 **/*.pyz
 
 **/.env
+**/outputs/
