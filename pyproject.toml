@@ -2,7 +2,7 @@
 name = "bingo-agent-simulation"
 version = "0.1.0"
 description = "A simulation of the bingo agent"
-authors = ["Aniketh Vijesh"]
+authors = [{ name = "Aniketh Vijesh" }, { name = "Sree Sharvesh"}]
 dependencies = [
     "black>=25.1.0",
     "dotenv>=0.9.9",
