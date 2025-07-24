@@ -1,0 +1,17 @@
+defaults:
+  - _self_
+  - paths: default
+  - agent: config
+  - conversation: config
+  - environment: default
+
+paths:
+  base_dir: ${hydra:runtime.cwd}
+
+hydra:
+  run:
+    dir: outputs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  sweep:
+    dir: outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: true 
