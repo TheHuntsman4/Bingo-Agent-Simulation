@@ -1,8 +1,3 @@
-defaults:
-  - _self_
-  - agent: agent
-  - conversation: conversation
-  - environment: time_dependent
 
 paths:
   base_dir: ${hydra:runtime.cwd}/simulation
@@ -12,6 +7,8 @@ paths:
   bingo_output_dir: bingo_outputs
   bingo_master_file: bingo_boards/alumni-simple-boards.json
 
+debug: true
+
 hydra:
   run:
     dir: outputs/runs/${now:%Y-%m-%d}/${now:%H-%M-%S}
@@ -19,3 +16,9 @@ hydra:
     dir: outputs/multirun/${now:%Y-%m-%d}/${now:%H-%M-%S}
   job:
     chdir: true 
+
+defaults:
+  - _self_
+  - agent: agent
+  - conversation: conversation
+  - environment: test

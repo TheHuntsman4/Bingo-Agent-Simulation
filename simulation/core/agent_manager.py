@@ -9,10 +9,24 @@ class AgentManager:
         self.cfg = cfg
         self.agents: Dict[str, Dict[str, Any]] = {}
         self._load_agents()
+        self._load_prompt_template()
+
+    def _load_prompt_template(self) -> None:
+        """Load the prompt template from file"""
+        template_path = os.path.join(os.path.dirname(self.cfg.paths.base_dir), self.cfg.agent.agent.prompt_template_file)
+        try:
+            with open(template_path, "r") as f:
+                self.prompt_template = f.read().strip()
+        except Exception as e:
+            print(f"Error loading prompt template: {e}")
+            self.prompt_template = "You are {name}. Your personality: {personality}. You are talking to {other_name}. Previous conversation: {conversation_summary}"
+        print(f"Prompt template loaded: {self.prompt_template}\n\n")
 
     def _load_agents(self) -> None:
         """Load all agent personalities and initialize agents"""
+        print(f"Loading agents from {self.cfg.paths.agents_dir}")
         agent_files = [f for f in os.listdir(self.cfg.paths.agents_dir) if f.endswith(".txt")]
+        print(f"Found {len(agent_files)} agent files")
         
         for fname in agent_files:
             with open(os.path.join(self.cfg.paths.agents_dir, fname), "r") as f:

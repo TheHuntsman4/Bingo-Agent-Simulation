@@ -2,6 +2,6 @@ type: time_dependent
 
 settings:
   time_dependent:
-    max_time_steps: 10  # Maximum number of time steps to run
+    max_time_steps: 50  # Maximum number of time steps to run
     messages_per_conversation: 3  # Number of messages each agent should exchange
     min_idle_agents_to_pair: 2  # Minimum number of idle agents needed to create new pairs 

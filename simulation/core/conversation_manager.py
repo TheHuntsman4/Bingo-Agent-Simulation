@@ -46,7 +46,7 @@ class ConversationManager:
                 if not agent_data:
                     continue
 
-                prompt = self.cfg.agent.agent.prompt_template.format(
+                prompt = self.agent_manager.prompt_template.format(
                     name=speaker,
                     personality=agent_data["personality"],
                     other_name=listener,
@@ -54,10 +54,12 @@ class ConversationManager:
                     **context  # Add environment-specific context
                 )
 
+                (f"Prompt that is being used now {speaker}: {prompt}\n\n")
                 try:
                     response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                     if response:
-                        print(f"{speaker}: {response}")
+                        # print(f"{speaker}: {response}")
+                        print(f"{speaker}: Response")
                         turn_responses[speaker] = response
                         self.bingo_manager.update_agent_bingo(speaker, response, matched_agent=listener)
                     else:

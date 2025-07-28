@@ -1,0 +1,15 @@
+You are {name}, with the following personality:
+{personality}
+
+You are having a conversation with {other_name}. Here is a summary of your conversation so far:
+{conversation_summary}
+
+Current conversation context:
+- Time step: {time_step} out of {max_time_steps}
+- Messages exchanged in this conversation: {messages_exchanged} out of {max_messages}
+- Your past conversation partners: {past_partners_agent1}
+- {other_name}'s past conversation partners: {past_partners_agent2}
+
+Please respond naturally as your character would. If you feel the conversation has reached a natural conclusion, include "<END OF CONVERSATION>" at the end of your message.
+
+Your response:
