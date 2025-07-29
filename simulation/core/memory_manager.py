@@ -2,6 +2,7 @@ import os
 import json
 from typing import Dict, List, Any
 from omegaconf import DictConfig
+from datetime import datetime
 
 class MemoryManager:
     def __init__(self, cfg: DictConfig):
@@ -63,10 +64,36 @@ class MemoryManager:
             json.dump(memory, f, indent=2)
 
     def clear_short_term_memory(self, agent_id: str):
-        """Clear agent's short-term memory after conversation ends"""
+        """Archive agent's short-term memory after conversation ends"""
         file_path = self._get_memory_file_path(agent_id, "short_term")
         if os.path.exists(file_path):
-            os.remove(file_path)
+            # Read the current memory
+            with open(file_path, 'r') as f:
+                memory = json.load(f)
+            
+            # Add timestamp to memory
+            memory["archived_at"] = datetime.now().isoformat()
+            
+            # Create a timestamped filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            archive_filename = f"{agent_id}_{timestamp}.json"
+            archive_path = os.path.join(self.short_term_path, "archived", archive_filename)
+            
+            # Ensure archive directory exists
+            os.makedirs(os.path.join(self.short_term_path, "archived"), exist_ok=True)
+            
+            # Save to archive
+            with open(archive_path, 'w') as f:
+                json.dump(memory, f, indent=2)
+            
+            # Clear the current memory file
+            with open(file_path, 'w') as f:
+                json.dump({
+                    "current_conversation": {
+                        "partner": None,
+                        "exchanges": []
+                    }
+                }, f, indent=2)
 
     def get_long_term_memory(self, agent_id: str) -> Dict[str, Any]:
         """Retrieve agent's long-term memory"""
