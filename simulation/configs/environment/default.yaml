@@ -1,0 +1,6 @@
+type: random_pairs  # Which environment to use
+
+# Environment specific settings can be added here
+settings:
+  random_pairs:
+    shuffle_pairs: true  # Whether to randomize conversation pairs 

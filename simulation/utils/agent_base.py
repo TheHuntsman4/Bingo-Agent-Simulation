@@ -2,7 +2,9 @@ from dotenv import load_dotenv
 import os
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-load_dotenv("./.env")
+env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../.env'))
+print(f"Loading .env from: {env_path}")
+load_dotenv(env_path)
 
 
 class AgentBase:

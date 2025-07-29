@@ -1,0 +1,7 @@
+defaults:
+  - _self_
+
+agent:
+  max_retries: 3
+  delay: 5
+  prompt_template_file: prompt_template.txt 

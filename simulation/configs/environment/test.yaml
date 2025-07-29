@@ -1,0 +1,8 @@
+type: test
+description: A simple test environment for multiple pairs of random agents to converse
+
+settings:
+  test:
+    max_time_steps: 10
+    max_agents: 4
+    messages_per_conversation: 10 
