@@ -52,7 +52,7 @@ def main(cfg: DictConfig) -> None:
     token_usage_path = token_counter.save_summary(cfg.paths.outputs_dir)
     token_counter.print_summary()
     print(f"\n💰 Token usage data saved to: {token_usage_path}")
-    print(f"Time taken: {end_time - start_time}")
+    print(f"Time taken: {(end_time - start_time)/60} minutes")
 
 if __name__ == "__main__":
     main()
