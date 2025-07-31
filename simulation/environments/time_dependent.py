@@ -1,4 +1,5 @@
 from typing import List, Dict, Any, Set, Tuple
+import random
 from omegaconf import DictConfig
 from core.agent_manager import AgentManager
 from core.memory_manager import MemoryManager
@@ -27,6 +28,12 @@ class TimeDependentEnvironment(BaseEnvironment):
         self.memory_manager = MemoryManager(cfg)  # Initialize memory manager
         self.initialize_agent_states()
         self.total_possible_conversations = self.calculate_total_possible_conversations()
+        # Set random seed if provided
+        if hasattr(cfg.environment.settings.time_dependent, 'random_seed'):
+            random.seed(cfg.environment.settings.time_dependent.random_seed)
+        else:
+            # Use current time as seed for true randomness
+            random.seed(None)
         self.print_experiment_setup()
 
     #######################
@@ -140,6 +147,8 @@ class TimeDependentEnvironment(BaseEnvironment):
             return []
 
         idle_agents = self.get_idle_agents()
+        # Shuffle the idle agents list for randomized pairing
+        random.shuffle(idle_agents)
         new_pairs = []
 
         # First try to resume conversations from previous time steps
@@ -163,13 +172,19 @@ class TimeDependentEnvironment(BaseEnvironment):
 
         # Then try to create new pairs for remaining idle agents
         remaining_idle = self.get_idle_agents()
+        # Shuffle again for randomized new pairings
+        random.shuffle(remaining_idle)
+        
         for i in range(0, len(remaining_idle) - 1):
             agent1 = remaining_idle[i]
             if self.agent_states[agent1].state != "idle":
                 continue
                 
-            for j in range(i + 1, len(remaining_idle)):
-                agent2 = remaining_idle[j]
+            # Shuffle potential partners for this agent
+            potential_partners = remaining_idle[i+1:]
+            random.shuffle(potential_partners)
+            
+            for agent2 in potential_partners:
                 if (self.agent_states[agent2].state == "idle" and 
                     agent2 not in self.agent_states[agent1].past_partners):
                     # Start new conversation
