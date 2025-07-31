@@ -1,5 +1,0 @@
-outputs_dir: outputs
-agents_dir: agents_personas
-bingo_board_dir: bingo_boards
-bingo_output_dir: bingo_outputs
-bingo_master_file: bingo_boards/alumni-simple-boards.json 

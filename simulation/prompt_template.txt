@@ -11,5 +11,5 @@ Current conversation context:
 - {other_name}'s past conversation partners: {past_partners_agent2}
 
 Please respond naturally as your character would. If you feel the conversation has reached a natural conclusion, include "<END OF CONVERSATION>" at the end of your message.
-
+Dont talk more than 2 sentences per exchange.
 Your response:
