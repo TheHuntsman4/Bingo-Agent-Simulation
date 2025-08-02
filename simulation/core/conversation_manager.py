@@ -84,8 +84,7 @@ class ConversationManager:
                 )
 
                 try:
-                    # response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
-                    response = "Some response <END OF CONVERSATION>"
+                    response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                     if response:
                         print(f"{speaker}: {response}")
                         turn_responses[speaker] = response
@@ -146,9 +145,10 @@ class ConversationManager:
             if i == 0:  # First line with speaker
                 formatted_lines.append(f"{speaker_color} {line.strip()}")
             else:  # Continuation lines
-                formatted_lines.append(f"   {line.strip()}")
+                formatted_lines.append(f"{line.strip()}")
         
         return "\n".join(formatted_lines)
+
 
     def get_memory_context(self, agent1: str, agent2: str) -> Dict[str, str]:
         """Get memory context for a conversation pair"""
@@ -174,32 +174,17 @@ class ConversationManager:
         return {
             "conversation_summary": conversation_summary,
             "previous_insights_about_partner": agent1_insights,
-            "partner_previous_insights": agent2_insights
+            "partner_previous_insights": agent2_insights,
+            "step_conversation_history": ""
+            
         }
 
     def update_conversation_memory(self, agent1: str, agent2: str, exchange: Dict[str, str], ended: bool = False):
         """Update memory after each exchange"""
-        # Update short-term memory with the new exchange
-        agent1_memory = self.memory_manager.get_short_term_memory(agent1)
-        agent2_memory = self.memory_manager.get_short_term_memory(agent2)
-        
-        # Update agent1's memory
-        if agent1_memory["current_conversation"]["partner"] != agent2:
-            agent1_memory["current_conversation"] = {
-                "partner": agent2,
-                "exchanges": []
-            }
-        agent1_memory["current_conversation"]["exchanges"].append(exchange)
-        self.memory_manager.update_short_term_memory(agent1, agent2, agent1_memory["current_conversation"])
-        
-        # Update agent2's memory
-        if agent2_memory["current_conversation"]["partner"] != agent1:
-            agent2_memory["current_conversation"] = {
-                "partner": agent1,
-                "exchanges": []
-            }
-        agent2_memory["current_conversation"]["exchanges"].append(exchange)
-        self.memory_manager.update_short_term_memory(agent2, agent1, agent2_memory["current_conversation"])
+        self.memory_manager.update_short_term_memory(agent1, agent2, exchange)
+
+        # Update agent2's memory  
+        self.memory_manager.update_short_term_memory(agent2, agent1, exchange)
 
     def end_time_step(self):
         """Process all conversations at the end of a time step"""
@@ -295,6 +280,9 @@ class ConversationManager:
                             if not agent_data:
                                 continue
                             
+                            short_term_mem = self.memory_manager.get_short_term_memory(speaker)
+                            last_exchange = short_term_mem['current_conversation']['exchanges'][-1] if len(short_term_mem['current_conversation']['exchanges']) > 0 else ""
+                            
                             # Build prompt with memory context
                             memory_context = ""
                             if memory["previous_insights_about_partner"]:
@@ -303,6 +291,8 @@ class ConversationManager:
                                 memory_context += f"\nWhat {listener} knows about you: {memory['partner_previous_insights']}"
                             if memory["conversation_summary"]:
                                 memory_context += f"\n\nPrevious conversation:\n{memory['conversation_summary']}"
+                            
+                            memory_context += f"\n\nThe conversation till this point:\n {last_exchange}\n{turn_responses}"
                             
                             prompt = self.agent_manager.prompt_template.format(
                                 name=speaker,
@@ -323,7 +313,7 @@ class ConversationManager:
                                     formatted_response = self.format_message(speaker, f"{speaker}: {response}")
                                     print(f"\n{formatted_response}")
                                     turn_responses[speaker] = response
-                                    self.bingo_manager.update_agent_bingo(speaker, response, matched_agent=listener)
+                                    # self.bingo_manager.update_agent_bingo(speaker, response, matched_agent=listener)
                                     
                                     if self.token_counter:
                                         self.token_counter.add_api_call(prompt=prompt, response=response)
