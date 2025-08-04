@@ -25,7 +25,10 @@ class ConversationManager:
 
     def safe_digest_conversation(self, prev_digest: str, history: str) -> str:
         """Safely digest conversation with retry logic"""
-        for attempt in range(self.cfg.conversation.conversation.digest.max_retries):
+        max_retries = self.cfg.conversation.conversation.digest.max_retries
+        base_delay = self.cfg.conversation.conversation.digest.delay
+        
+        for attempt in range(max_retries):
             try:
                 digest = digest_conversation(prev_digest, history)
                 if self.token_counter:
@@ -33,17 +36,28 @@ class ConversationManager:
                         prompt=f"Previous: {prev_digest}\nHistory: {history}",
                         response=digest.content if hasattr(digest, 'content') else str(digest)
                     )
-                time.sleep(self.cfg.conversation.conversation.digest.delay)
+                time.sleep(base_delay)
                 return digest.content if hasattr(digest, 'content') else str(digest)
             except Exception as e:
+                wait_time = base_delay * (attempt + 1)
                 if "429" in str(e) or "quota" in str(e).lower():
-                    print(f"Rate limit hit during digestion, waiting {self.cfg.conversation.conversation.digest.delay * (attempt + 1)} seconds...")
-                    time.sleep(self.cfg.conversation.conversation.digest.delay * (attempt + 1))
+                    print(f"Rate limit hit during digestion, waiting {wait_time} seconds...")
+                    time.sleep(wait_time)
                 else:
                     print(f"Error digesting conversation on attempt {attempt + 1}: {e}")
-                    if attempt == self.cfg.conversation.conversation.digest.max_retries - 1:
-                        return f"Conversation summary: {len(history)} exchanges have occurred."
-        return "Conversation summary: Unable to generate digest."
+                    time.sleep(wait_time)
+                
+                # On last attempt, try one final time with increased timeout
+                if attempt == max_retries - 1:
+                    try:
+                        time.sleep(wait_time * 2)  # Double the wait time for final attempt
+                        digest = digest_conversation(prev_digest, history)
+                        return digest.content if hasattr(digest, 'content') else str(digest)
+                    except Exception as final_e:
+                        print(f"Final attempt failed: {final_e}")
+                        raise Exception("Failed to generate conversation digest after all retries")
+        
+        raise Exception("Failed to generate conversation digest after all retries")
 
     def generate_long_term_memory(self, agent_id: str, other_agent_id: str, full_history: List[Dict[str, str]]) -> str:
         """Generate long-term memory entry from conversation history"""
