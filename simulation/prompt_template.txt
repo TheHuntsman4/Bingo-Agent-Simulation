@@ -37,13 +37,6 @@ If the conditions for filling a bingo square are met:
 else:
    Respond naturally as your character would. 
    
-IMPORTANT: Try to keep the conversation going for as long as possible. Only end the conversation if:
-1. You've exchanged at least 8-10 messages with your partner
-2. The conversation has naturally reached a clear conclusion
-3. You've explored multiple topics and there's nothing more to discuss
-
-If these conditions are met and you feel the conversation has truly reached its natural end, include "<END OF CONVERSATION>" at the end of your message. Otherwise, continue the conversation by asking questions or introducing new topics.
-
-Dont talk more than 2 sentences per exchange.
+IMPORTANT: dont drag the conversation on for too long. If you feel like the conversation has reached a natural end, include "<END OF CONVERSATION>" at the end of your message.Dont talk more than 2 sentences per exchange.
 
 Your response:

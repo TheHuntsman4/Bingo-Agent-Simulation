@@ -294,8 +294,6 @@ class TimeDependentEnvironment(BaseEnvironment):
             self.reset_agent_state(agent2)
             
             print(f"\n🏁 Conversation completed between {agent1} and {agent2}")
-            # Only print stats when conversation ends
-            self.print_agent_stats()
         else:
             # If we've hit the messages per time step limit but conversation isn't over
             if (self.agent_states[agent1].messages_this_time_step >= 
@@ -305,7 +303,6 @@ class TimeDependentEnvironment(BaseEnvironment):
         # Check if this was the last possible conversation
         if self.all_conversations_complete():
             self.experiment_complete = True
-            self.print_agent_stats()  # Print final stats
 
     def reset_agent_state(self, agent_name: str):
         """Reset an agent's state to idle"""

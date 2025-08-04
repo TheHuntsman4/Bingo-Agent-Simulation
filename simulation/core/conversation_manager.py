@@ -85,6 +85,8 @@ class ConversationManager:
                 )
 
                 try:
+                    prompt_tokens = len(str(prompt)) // 4
+                    print(f"🗣️  {speaker} submitting prompt with ~{prompt_tokens} tokens...")
                     response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                     if response:
                         print(f"{speaker}: {response}")
@@ -162,13 +164,7 @@ class ConversationManager:
 
         # Get current short-term memory
         agent1_memory = self.memory_manager.get_short_term_memory(agent1)
-        
-        # conversation_summary = self.safe_digest_conversation(agent1_insights, agent1_memory["current_conversation"]["exchanges"])
-        
-        if self.memory_manager.get_long_term_memory(agent1)["agent_insights"][agent2]:
-            conversation_summary = self.memory_manager.get_long_term_memory(agent1)["agent_insights"][agent2]
-        else:
-            conversation_summary = ""
+        conversation_summary = self.safe_digest_conversation(agent1_insights, agent1_memory["current_conversation"]["exchanges"])
         
         return {
             "conversation_summary": conversation_summary,
@@ -263,6 +259,8 @@ class ConversationManager:
                 current_pairs = self.environment.get_conversation_pairs()
                 
                 for agent1, agent2 in current_pairs:
+                    print(f"Delaying conversation between {agent1} and {agent2} for 10 seconds.")
+                    time.sleep(10)
                     # Get memory context
                     memory = self.get_memory_context(agent1, agent2)
                     if memory["conversation_summary"]:
@@ -309,6 +307,9 @@ class ConversationManager:
                                 past_partners_agent2=self.environment.agent_states[listener].past_partners,
                                 last_exchange=last_exchange
                             )
+                            
+                            prompt_tokens = len(str(prompt)) // 4
+                            print(f"🗣️  {speaker} submitting prompt with ~{prompt_tokens} tokens...")
                             
                             try:
                                 response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
@@ -381,17 +382,13 @@ class ConversationManager:
                             # Check for conversation end
                             conversation_ended = False
                             
-                            # Check if any response contains the end marker
-                            for resp_key, resp_value in turn_responses.items():
-                                if "<END OF CONVERSATION>" in resp_value:
-                                    # Get conversation history to check length
-                                    speaker_mem = self.memory_manager.get_short_term_memory(agent1)
-                                    if not speaker_mem:
-                                        speaker_mem = self.memory_manager.get_short_term_memory(agent2)
-                                    
-                                    # Allow conversation to end naturally whenever the end marker is used
+                            # Check if any response has end marker
+                            for response in turn_responses.values():
+                                if "<END OF CONVERSATION>" in response:
                                     conversation_ended = True
-                                    print(f"\n🏁 Conversation naturally ended after {len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'} exchanges")
+                                    speaker_mem = self.memory_manager.get_short_term_memory(agent1) or self.memory_manager.get_short_term_memory(agent2)
+                                    exchanges = len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'
+                                    print(f"\n🏁 Conversation naturally ended after {exchanges} exchanges")
                             
                             # Update agent states
                             self.environment.update_agent_states(agent1, agent2, ended=conversation_ended)
@@ -403,6 +400,9 @@ class ConversationManager:
                 
                 # Process all conversations at the end of the time step
                 self.end_time_step()
+                
+                # Print agent statistics at the end of each time step
+                self.environment.print_agent_stats()
                 
                 if self.environment.experiment_complete:
                     print("\n🎉 All possible conversations have been completed!")
