@@ -1,0 +1,88 @@
+{
+  "squares": [
+    {
+      "visualType": "meet",
+      "text": "Find someone who was in the same college as  you (e.g. 9/10 or Stevenson/Cowell)",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who rode the world's fastest roller coaster and was put off amusement parks for years",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is looking for advice on... Growing in design career and skill.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has played chess with an ex-world champion",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find another aviation enthusiast to share your most memorable flight story with.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who knows who won the last Champions League",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is a morning person",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who knows what is a 'heuristic evaluation'.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Share a tip for advancement",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone following AI advances - stay informed now!",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Ask someone to share a specific tip for getting a startup funded.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find a current lab member",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "squares": [
+    {
+      "visualType": "meet",
+      "text": "Find someone who was in the same college as  you (e.g. 9/10 or Stevenson/Cowell)",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has crashed an airplane",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is looking for advice on... Growing in design career and skill.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is dabbling in a third language",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find another runner and compare your best race experiences.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who's reading the new Colleen Hoover book",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is a morning person",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who knows what is a 'heuristic evaluation'.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has a favorite cake decorating tip.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone seeking design friends - build connections now!",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Ask someone to share their most effective time management tip.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find an alumni",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    }
+  ]
+}

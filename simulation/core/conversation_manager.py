@@ -2,6 +2,7 @@ import os
 import time
 from typing import Dict, List, Any
 from omegaconf import DictConfig
+import re
 
 from utils.log_memory import log_conversation, generate_conversation_id, digest_conversation, global_token_counter
 from core.agent_manager import AgentManager
@@ -161,16 +162,14 @@ class ConversationManager:
 
         # Get current short-term memory
         agent1_memory = self.memory_manager.get_short_term_memory(agent1)
-        conversation_summary = ""
         
-        # Get exchanges from short-term memory
-        if agent1_memory and agent1_memory["current_conversation"]["partner"] == agent2:
-            exchanges = agent1_memory["current_conversation"]["exchanges"]
-            if exchanges:
-                conversation_summary = "Previous exchanges:\n" + "\n".join(
-                    [f"{k}: {v}" for exchange in exchanges for k, v in exchange.items()]
-                )
-
+        # conversation_summary = self.safe_digest_conversation(agent1_insights, agent1_memory["current_conversation"]["exchanges"])
+        
+        if self.memory_manager.get_long_term_memory(agent1)["agent_insights"][agent2]:
+            conversation_summary = self.memory_manager.get_long_term_memory(agent1)["agent_insights"][agent2]
+        else:
+            conversation_summary = ""
+        
         return {
             "conversation_summary": conversation_summary,
             "previous_insights_about_partner": agent1_insights,
@@ -295,6 +294,9 @@ class ConversationManager:
                             memory_context += f"\n\nThe conversation till this point:\n {last_exchange}\n{turn_responses}"
                             
                             prompt = self.agent_manager.prompt_template.format(
+                                agent_curr_bingo_board=self.bingo_manager.get_agent_bingo(speaker),
+                                num_filled_squares = self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
+                                num_unfilled_squares = self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
                                 name=speaker,
                                 personality=agent_data["personality"],
                                 other_name=listener,
@@ -304,17 +306,68 @@ class ConversationManager:
                                 messages_exchanged=self.environment.agent_states[speaker].messages_in_current_conversation,
                                 max_messages=self.cfg.environment.settings.time_dependent.messages_per_time_step,
                                 past_partners_agent1=self.environment.agent_states[speaker].past_partners,
-                                past_partners_agent2=self.environment.agent_states[listener].past_partners
+                                past_partners_agent2=self.environment.agent_states[listener].past_partners,
+                                last_exchange=last_exchange
                             )
                             
                             try:
                                 response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                                 if response:
+                                    # Strip out bingo tags if present
+                                    if "<FILL IN BINGO>" in response:
+                                        bingo_text = response.split("<FILL IN BINGO>")[1].split("</FILL IN BINGO>")[0]
+                                        response = response.replace(f"<FILL IN BINGO>{bingo_text}</FILL IN BINGO>", "")
+                                        
+                                        # Check if there's a meaningful context for the bingo filling
+                                        should_update = True
+                                        
+                                        # Get conversation history
+                                        short_term_mem = self.memory_manager.get_short_term_memory(speaker)
+                                        
+                                        # If this is the first exchange, don't allow bingo filling
+                                        if not short_term_mem or len(short_term_mem['current_conversation']['exchanges']) <= 1:
+                                            print(f"⚠️ {speaker} attempted to fill bingo too early in the conversation. Ignoring.")
+                                            should_update = False
+                                        else:
+                                            # Get the last exchange from the other participant
+                                            last_exchanges = short_term_mem['current_conversation']['exchanges']
+                                            other_participant_messages = []
+                                            
+                                            # Collect the last 2 messages from the other participant
+                                            for exchange in reversed(last_exchanges):
+                                                if listener in exchange:
+                                                    other_participant_messages.append(exchange[listener])
+                                                    if len(other_participant_messages) >= 2:
+                                                        break
+                                            
+                                            # Check if the bingo text is related to what the other participant said
+                                            if not other_participant_messages:
+                                                print(f"⚠️ No previous messages from {listener} found. Ignoring bingo attempt.")
+                                                should_update = False
+                                            else:
+                                                # Combine the other participant's messages
+                                                other_text = " ".join(other_participant_messages)
+                                                
+                                                # Check for keyword overlap between bingo text and other's messages
+                                                bingo_keywords = [w.lower() for w in re.findall(r"\b\w+\b", bingo_text) if len(w) > 3]
+                                                other_keywords = [w.lower() for w in re.findall(r"\b\w+\b", other_text) if len(w) > 3]
+                                                
+                                                # Calculate overlap
+                                                overlap = [w for w in bingo_keywords if w in other_keywords]
+                                                
+                                                if len(overlap) < 2 and (len(bingo_keywords) == 0 or len(overlap) / len(bingo_keywords) < 0.2):
+                                                    print(f"⚠️ Bingo attempt by {speaker} doesn't match conversation context. Ignoring.")
+                                                    should_update = False
+                                        
+                                        # Only update if there's a meaningful context
+                                        if should_update:
+                                            self.bingo_manager.update_agent_bingo(speaker, bingo_text, matched_agent=listener)
+                                            print(f"✅ Bingo board updated for {speaker} with the content: {bingo_text}")
+                                        
                                     formatted_response = self.format_message(speaker, f"{speaker}: {response}")
                                     print(f"\n{formatted_response}")
                                     turn_responses[speaker] = response
-                                    # self.bingo_manager.update_agent_bingo(speaker, response, matched_agent=listener)
-                                    
+
                                     if self.token_counter:
                                         self.token_counter.add_api_call(prompt=prompt, response=response)
                             except Exception as e:
@@ -326,13 +379,24 @@ class ConversationManager:
                             self.update_conversation_memory(agent1, agent2, turn_responses)
                             
                             # Check for conversation end
-                            conversation_ended = any("<END OF CONVERSATION>" in resp for resp in turn_responses.values())
+                            conversation_ended = False
+                            
+                            # Check if any response contains the end marker
+                            for resp_key, resp_value in turn_responses.items():
+                                if "<END OF CONVERSATION>" in resp_value:
+                                    # Get conversation history to check length
+                                    speaker_mem = self.memory_manager.get_short_term_memory(agent1)
+                                    if not speaker_mem:
+                                        speaker_mem = self.memory_manager.get_short_term_memory(agent2)
+                                    
+                                    # Allow conversation to end naturally whenever the end marker is used
+                                    conversation_ended = True
+                                    print(f"\n🏁 Conversation naturally ended after {len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'} exchanges")
                             
                             # Update agent states
                             self.environment.update_agent_states(agent1, agent2, ended=conversation_ended)
                             
                             if conversation_ended:
-                                print("\n🏁 Conversation naturally ended")
                                 break
                         else:
                             break
