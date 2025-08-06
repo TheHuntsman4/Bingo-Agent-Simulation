@@ -1,0 +1,88 @@
+{
+  "squares": [
+    {
+      "visualType": "meet",
+      "text": "Find someone who was in the same college as  you (e.g. 9/10 or Stevenson/Cowell)",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has crashed an airplane",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is looking for advice on... Starting a PhD program successfully.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has been on the world's fastest roller coaster.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone else who enjoys reading and exchange book recommendations.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who wants to paint like Bob Ross",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is a morning person",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who knows what is a 'heuristic evaluation'.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Share advice about succeeding as an undergraduate student",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find others in the job search - you can do it!",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Ask someone to share a piece of career advice.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find a current lab member",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    }
+  ]
+}

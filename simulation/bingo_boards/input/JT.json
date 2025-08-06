@@ -1,0 +1,88 @@
+{
+  "squares": [
+    {
+      "visualType": "meet",
+      "text": "Find someone who was in the same college as  you (e.g. 9/10 or Stevenson/Cowell)",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone whose ancestor was in the Teapot Dome scandal",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is looking for advice on... Growing in design career and skill.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is dabbling in a third language",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find another Bay Area sports fan and share your favorite team memory.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has or wants to speedrun Mario Kart",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who is a morning person",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone who has a favorite cake decorating tip.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Share a tip based on your experience",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find someone else interested in tech or startups and discuss your favorite innovation.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "support",
+      "text": "Ask a former or current federal employee to describe the current climate in the executive branch.",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    },
+    {
+      "visualType": "meet",
+      "text": "Find a current lab member",
+      "filled": false,
+      "matched_with": "",
+      "response_snippet": ""
+    }
+  ]
+}

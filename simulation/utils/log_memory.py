@@ -9,7 +9,7 @@ from utils.token_counter import TokenCounter
 global_token_counter = None
 
 def generate_conversation_id():
-    return str(uuid.uuid4())
+    return uuid.uuid4().hex[:8]
 
 def digest_conversation(prev_digest, history):
     model = ChatGoogleGenerativeAI(

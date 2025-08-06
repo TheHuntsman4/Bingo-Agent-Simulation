@@ -3,12 +3,13 @@ import time
 from typing import Dict, Any, Optional
 from omegaconf import DictConfig
 from utils.agent_base import AgentBase
+import random
 
 class AgentManager:
     def __init__(self, cfg: DictConfig):
         self.cfg = cfg
         self.agents: Dict[str, Dict[str, Any]] = {}
-        self._load_agents()
+        self._load_agents(cfg)
         self._load_prompt_template()
 
     def _load_prompt_template(self) -> None:
@@ -20,13 +21,18 @@ class AgentManager:
         except Exception as e:
             print(f"Error loading prompt template: {e}")
             self.prompt_template = "You are {name}. Your personality: {personality}. You are talking to {other_name}. Previous conversation: {conversation_summary}"
-        print(f"Prompt template loaded: {self.prompt_template}\n\n")
 
-    def _load_agents(self) -> None:
+    def _load_agents(self, cfg: DictConfig) -> None:
         """Load all agent personalities and initialize agents"""
+        max_agents = cfg.experiment["max_agents"]
+        print("Max agents: ", max_agents)
         print(f"Loading agents from {self.cfg.paths.agents_dir}")
         agent_files = [f for f in os.listdir(self.cfg.paths.agents_dir) if f.endswith(".txt")]
         print(f"Found {len(agent_files)} agent files")
+        
+        if max_agents < len(agent_files):
+            agent_files = random.sample(agent_files, max_agents)
+            print(f"Using only {max_agents} agents: {agent_files}")
         
         for fname in agent_files:
             with open(os.path.join(self.cfg.paths.agents_dir, fname), "r") as f:

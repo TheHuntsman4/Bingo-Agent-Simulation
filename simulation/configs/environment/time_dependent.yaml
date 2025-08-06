@@ -3,7 +3,6 @@ type: time_dependent
 settings:
   time_dependent:
     max_time_steps: 50  # Maximum number of time steps to run
-    messages_per_time_step: 4  # Maximum messages each agent can exchange per time step
-    messages_per_conversation: 3  # Total messages before conversation is suspended
+    messages_per_time_step: 2  # Maximum messages each agent can exchange per time step
     min_idle_agents_to_pair: 2  # Minimum number of idle agents needed to create new pairs
-    random_seed: null  # Set to null for random pairing, or specify an integer for reproducible pairing 
+    random_seed: null  # Set to null for random pairing, or specify an integer for reproducible pairing

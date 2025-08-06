@@ -2,6 +2,7 @@ import os
 import time
 from typing import Dict, List, Any
 from omegaconf import DictConfig
+import re
 
 from utils.log_memory import log_conversation, generate_conversation_id, digest_conversation, global_token_counter
 from core.agent_manager import AgentManager
@@ -24,7 +25,10 @@ class ConversationManager:
 
     def safe_digest_conversation(self, prev_digest: str, history: str) -> str:
         """Safely digest conversation with retry logic"""
-        for attempt in range(self.cfg.conversation.conversation.digest.max_retries):
+        max_retries = self.cfg.conversation.conversation.digest.max_retries
+        base_delay = self.cfg.conversation.conversation.digest.delay
+        
+        for attempt in range(max_retries):
             try:
                 digest = digest_conversation(prev_digest, history)
                 if self.token_counter:
@@ -32,17 +36,28 @@ class ConversationManager:
                         prompt=f"Previous: {prev_digest}\nHistory: {history}",
                         response=digest.content if hasattr(digest, 'content') else str(digest)
                     )
-                time.sleep(self.cfg.conversation.conversation.digest.delay)
+                time.sleep(base_delay)
                 return digest.content if hasattr(digest, 'content') else str(digest)
             except Exception as e:
+                wait_time = base_delay * (attempt + 1)
                 if "429" in str(e) or "quota" in str(e).lower():
-                    print(f"Rate limit hit during digestion, waiting {self.cfg.conversation.conversation.digest.delay * (attempt + 1)} seconds...")
-                    time.sleep(self.cfg.conversation.conversation.digest.delay * (attempt + 1))
+                    print(f"Rate limit hit during digestion, waiting {wait_time} seconds...")
+                    time.sleep(wait_time)
                 else:
                     print(f"Error digesting conversation on attempt {attempt + 1}: {e}")
-                    if attempt == self.cfg.conversation.conversation.digest.max_retries - 1:
-                        return f"Conversation summary: {len(history)} exchanges have occurred."
-        return "Conversation summary: Unable to generate digest."
+                    time.sleep(wait_time)
+                
+                # On last attempt, try one final time with increased timeout
+                if attempt == max_retries - 1:
+                    try:
+                        time.sleep(wait_time * 2)  # Double the wait time for final attempt
+                        digest = digest_conversation(prev_digest, history)
+                        return digest.content if hasattr(digest, 'content') else str(digest)
+                    except Exception as final_e:
+                        print(f"Final attempt failed: {final_e}")
+                        raise Exception("Failed to generate conversation digest after all retries")
+        
+        raise Exception("Failed to generate conversation digest after all retries")
 
     def generate_long_term_memory(self, agent_id: str, other_agent_id: str, full_history: List[Dict[str, str]]) -> str:
         """Generate long-term memory entry from conversation history"""
@@ -84,8 +99,9 @@ class ConversationManager:
                 )
 
                 try:
-                    # response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
-                    response = "Some response <END OF CONVERSATION>"
+                    prompt_tokens = len(str(prompt)) // 4
+                    print(f"🗣️  {speaker} submitting prompt with ~{prompt_tokens} tokens...")
+                    response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                     if response:
                         print(f"{speaker}: {response}")
                         turn_responses[speaker] = response
@@ -146,9 +162,10 @@ class ConversationManager:
             if i == 0:  # First line with speaker
                 formatted_lines.append(f"{speaker_color} {line.strip()}")
             else:  # Continuation lines
-                formatted_lines.append(f"   {line.strip()}")
+                formatted_lines.append(f"{line.strip()}")
         
         return "\n".join(formatted_lines)
+
 
     def get_memory_context(self, agent1: str, agent2: str) -> Dict[str, str]:
         """Get memory context for a conversation pair"""
@@ -161,45 +178,22 @@ class ConversationManager:
 
         # Get current short-term memory
         agent1_memory = self.memory_manager.get_short_term_memory(agent1)
-        conversation_summary = ""
+        conversation_summary = self.safe_digest_conversation(agent1_insights, agent1_memory["current_conversation"]["exchanges"])
         
-        # Get exchanges from short-term memory
-        if agent1_memory and agent1_memory["current_conversation"]["partner"] == agent2:
-            exchanges = agent1_memory["current_conversation"]["exchanges"]
-            if exchanges:
-                conversation_summary = "Previous exchanges:\n" + "\n".join(
-                    [f"{k}: {v}" for exchange in exchanges for k, v in exchange.items()]
-                )
-
         return {
             "conversation_summary": conversation_summary,
             "previous_insights_about_partner": agent1_insights,
-            "partner_previous_insights": agent2_insights
+            "partner_previous_insights": agent2_insights,
+            "step_conversation_history": ""
+            
         }
 
     def update_conversation_memory(self, agent1: str, agent2: str, exchange: Dict[str, str], ended: bool = False):
         """Update memory after each exchange"""
-        # Update short-term memory with the new exchange
-        agent1_memory = self.memory_manager.get_short_term_memory(agent1)
-        agent2_memory = self.memory_manager.get_short_term_memory(agent2)
-        
-        # Update agent1's memory
-        if agent1_memory["current_conversation"]["partner"] != agent2:
-            agent1_memory["current_conversation"] = {
-                "partner": agent2,
-                "exchanges": []
-            }
-        agent1_memory["current_conversation"]["exchanges"].append(exchange)
-        self.memory_manager.update_short_term_memory(agent1, agent2, agent1_memory["current_conversation"])
-        
-        # Update agent2's memory
-        if agent2_memory["current_conversation"]["partner"] != agent1:
-            agent2_memory["current_conversation"] = {
-                "partner": agent1,
-                "exchanges": []
-            }
-        agent2_memory["current_conversation"]["exchanges"].append(exchange)
-        self.memory_manager.update_short_term_memory(agent2, agent1, agent2_memory["current_conversation"])
+        self.memory_manager.update_short_term_memory(agent1, agent2, exchange)
+
+        # Update agent2's memory  
+        self.memory_manager.update_short_term_memory(agent2, agent1, exchange)
 
     def end_time_step(self):
         """Process all conversations at the end of a time step"""
@@ -279,6 +273,8 @@ class ConversationManager:
                 current_pairs = self.environment.get_conversation_pairs()
                 
                 for agent1, agent2 in current_pairs:
+                    print(f"Delaying conversation between {agent1} and {agent2} for 10 seconds.")
+                    time.sleep(10)
                     # Get memory context
                     memory = self.get_memory_context(agent1, agent2)
                     if memory["conversation_summary"]:
@@ -295,6 +291,9 @@ class ConversationManager:
                             if not agent_data:
                                 continue
                             
+                            short_term_mem = self.memory_manager.get_short_term_memory(speaker)
+                            last_exchange = short_term_mem['current_conversation']['exchanges'][-1] if len(short_term_mem['current_conversation']['exchanges']) > 0 else ""
+                            
                             # Build prompt with memory context
                             memory_context = ""
                             if memory["previous_insights_about_partner"]:
@@ -304,7 +303,12 @@ class ConversationManager:
                             if memory["conversation_summary"]:
                                 memory_context += f"\n\nPrevious conversation:\n{memory['conversation_summary']}"
                             
+                            memory_context += f"\n\nThe conversation till this point:\n {last_exchange}\n{turn_responses}"
+                            
                             prompt = self.agent_manager.prompt_template.format(
+                                agent_curr_bingo_board=self.bingo_manager.get_agent_bingo(speaker),
+                                num_filled_squares = self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
+                                num_unfilled_squares = self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
                                 name=speaker,
                                 personality=agent_data["personality"],
                                 other_name=listener,
@@ -314,17 +318,71 @@ class ConversationManager:
                                 messages_exchanged=self.environment.agent_states[speaker].messages_in_current_conversation,
                                 max_messages=self.cfg.environment.settings.time_dependent.messages_per_time_step,
                                 past_partners_agent1=self.environment.agent_states[speaker].past_partners,
-                                past_partners_agent2=self.environment.agent_states[listener].past_partners
+                                past_partners_agent2=self.environment.agent_states[listener].past_partners,
+                                last_exchange=last_exchange
                             )
+                            
+                            prompt_tokens = len(str(prompt)) // 4
+                            print(f"🗣️  {speaker} submitting prompt with ~{prompt_tokens} tokens...")
                             
                             try:
                                 response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
                                 if response:
+                                    # Strip out bingo tags if present
+                                    if "<FILL IN BINGO>" in response:
+                                        bingo_text = response.split("<FILL IN BINGO>")[1].split("</FILL IN BINGO>")[0]
+                                        response = response.replace(f"<FILL IN BINGO>{bingo_text}</FILL IN BINGO>", "")
+                                        
+                                        # Check if there's a meaningful context for the bingo filling
+                                        should_update = True
+                                        
+                                        # Get conversation history
+                                        short_term_mem = self.memory_manager.get_short_term_memory(speaker)
+                                        
+                                        # If this is the first exchange, don't allow bingo filling
+                                        if not short_term_mem or len(short_term_mem['current_conversation']['exchanges']) <= 1:
+                                            print(f"⚠️ {speaker} attempted to fill bingo too early in the conversation. Ignoring.")
+                                            should_update = False
+                                        else:
+                                            # Get the last exchange from the other participant
+                                            last_exchanges = short_term_mem['current_conversation']['exchanges']
+                                            other_participant_messages = []
+                                            
+                                            # Collect the last 2 messages from the other participant
+                                            for exchange in reversed(last_exchanges):
+                                                if listener in exchange:
+                                                    other_participant_messages.append(exchange[listener])
+                                                    if len(other_participant_messages) >= 2:
+                                                        break
+                                            
+                                            # Check if the bingo text is related to what the other participant said
+                                            if not other_participant_messages:
+                                                print(f"⚠️ No previous messages from {listener} found. Ignoring bingo attempt.")
+                                                should_update = False
+                                            else:
+                                                # Combine the other participant's messages
+                                                other_text = " ".join(other_participant_messages)
+                                                
+                                                # Check for keyword overlap between bingo text and other's messages
+                                                bingo_keywords = [w.lower() for w in re.findall(r"\b\w+\b", bingo_text) if len(w) > 3]
+                                                other_keywords = [w.lower() for w in re.findall(r"\b\w+\b", other_text) if len(w) > 3]
+                                                
+                                                # Calculate overlap
+                                                overlap = [w for w in bingo_keywords if w in other_keywords]
+                                                
+                                                if len(overlap) < 2 and (len(bingo_keywords) == 0 or len(overlap) / len(bingo_keywords) < 0.2):
+                                                    print(f"⚠️ Bingo attempt by {speaker} doesn't match conversation context. Ignoring.")
+                                                    should_update = False
+                                        
+                                        # Only update if there's a meaningful context
+                                        if should_update:
+                                            self.bingo_manager.update_agent_bingo(speaker, bingo_text, matched_agent=listener)
+                                            print(f"✅ Bingo board updated for {speaker} with the content: {bingo_text}")
+                                        
                                     formatted_response = self.format_message(speaker, f"{speaker}: {response}")
                                     print(f"\n{formatted_response}")
                                     turn_responses[speaker] = response
-                                    self.bingo_manager.update_agent_bingo(speaker, response, matched_agent=listener)
-                                    
+
                                     if self.token_counter:
                                         self.token_counter.add_api_call(prompt=prompt, response=response)
                             except Exception as e:
@@ -336,19 +394,29 @@ class ConversationManager:
                             self.update_conversation_memory(agent1, agent2, turn_responses)
                             
                             # Check for conversation end
-                            conversation_ended = any("<END OF CONVERSATION>" in resp for resp in turn_responses.values())
+                            conversation_ended = False
+                            
+                            # Check if any response has end marker
+                            for response in turn_responses.values():
+                                if "<END OF CONVERSATION>" in response:
+                                    conversation_ended = True
+                                    speaker_mem = self.memory_manager.get_short_term_memory(agent1) or self.memory_manager.get_short_term_memory(agent2)
+                                    exchanges = len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'
+                                    print(f"\n🏁 Conversation naturally ended after {exchanges} exchanges")
                             
                             # Update agent states
                             self.environment.update_agent_states(agent1, agent2, ended=conversation_ended)
                             
                             if conversation_ended:
-                                print("\n🏁 Conversation naturally ended")
                                 break
                         else:
                             break
                 
                 # Process all conversations at the end of the time step
                 self.end_time_step()
+                
+                # Print agent statistics at the end of each time step
+                self.environment.print_agent_stats()
                 
                 if self.environment.experiment_complete:
                     print("\n🎉 All possible conversations have been completed!")

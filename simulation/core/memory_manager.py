@@ -7,9 +7,11 @@ from datetime import datetime
 class MemoryManager:
     def __init__(self, cfg: DictConfig):
         self.cfg = cfg
-        self.base_memory_path = os.path.join(os.path.dirname(cfg.paths.base_dir), "agent_memories")
-        self.long_term_path = os.path.join(self.base_memory_path, "long_term")
-        self.short_term_path = os.path.join(self.base_memory_path, "short_term")
+        
+        self.base_memory_path = os.path.join(os.path.dirname(cfg.paths.base_dir), cfg.paths.outputs_dir, cfg.paths.agent_memories_dir, cfg.experiment.experiment_id)
+        self.long_term_path = os.path.join(self.base_memory_path, cfg.paths.long_term_memories)
+        self.short_term_path = os.path.join(self.base_memory_path, cfg.paths.short_term_memories)
+        
         self._ensure_memory_dirs()
 
     def _ensure_memory_dirs(self):
@@ -37,7 +39,6 @@ class MemoryManager:
                     "exchanges": []
                 }
             }
-        
         # Add new exchange
         memory["current_conversation"]["exchanges"].append(exchange)
         
