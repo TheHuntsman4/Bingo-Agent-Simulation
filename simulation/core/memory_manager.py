@@ -39,6 +39,7 @@ class MemoryManager:
                     "exchanges": []
                 }
             }
+        
         # Add new exchange
         memory["current_conversation"]["exchanges"].append(exchange)
         
@@ -64,20 +65,35 @@ class MemoryManager:
         with open(file_path, 'w') as f:
             json.dump(memory, f, indent=2)
 
-    def clear_short_term_memory(self, agent_id: str):
-        """Archive agent's short-term memory after conversation ends"""
+    def clear_short_term_memory(self, agent_id: str, partner_id: str = None):
+        """Archive agent's short-term memory after conversation ends
+        
+        Args:
+            agent_id (str): ID of the agent whose memory is being cleared
+            partner_id (str, optional): ID of the conversation partner. If provided,
+                                      will be used in the archive filename.
+        """
         file_path = self._get_memory_file_path(agent_id, "short_term")
         if os.path.exists(file_path):
             # Read the current memory
             with open(file_path, 'r') as f:
                 memory = json.load(f)
             
+            
+            partner_in_exchanges = set(memory["current_conversation"]["exchanges"][-1].keys())
+            if partner_id not in partner_in_exchanges:
+                print(f"Partner ID not found in exchanges: {partner_id}")
+                partner_id = list(partner_in_exchanges - set([agent_id]))[0]
+                print(f"Updating Partner ID to: {partner_id}")
+                memory["current_conversation"]["partner"] = partner_id
+            
             # Add timestamp to memory
             memory["archived_at"] = datetime.now().isoformat()
             
-            # Create a timestamped filename
+            # Create archive filename using both agent IDs if partner_id is provided
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_filename = f"{agent_id}_{timestamp}.json"
+            archive_filename = f"{agent_id}_{partner_id}.json"
+                
             archive_path = os.path.join(self.short_term_path, "archived", archive_filename)
             
             # Ensure archive directory exists
@@ -87,11 +103,11 @@ class MemoryManager:
             with open(archive_path, 'w') as f:
                 json.dump(memory, f, indent=2)
             
-            # Clear the current memory file
+            # Clear the current memory file and reset for new conversations
             with open(file_path, 'w') as f:
                 json.dump({
                     "current_conversation": {
-                        "partner": None,
+                        "partner": partner_id,
                         "exchanges": []
                     }
                 }, f, indent=2)
@@ -104,10 +120,10 @@ class MemoryManager:
                 return json.load(f)
         return {"agent_insights": {}}
 
-    def get_short_term_memory(self, agent_id: str) -> Dict[str, Any]:
+    def get_short_term_memory(self, agent_id: str, partner_id: str = None) -> Dict[str, Any]:
         """Retrieve agent's short-term memory"""
         file_path = self._get_memory_file_path(agent_id, "short_term")
         if os.path.exists(file_path):
             with open(file_path, 'r') as f:
                 return json.load(f)
-        return {"current_conversation": {"partner": None, "exchanges": []}} 
+        return {"current_conversation": {"partner": partner_id, "exchanges": []}} 

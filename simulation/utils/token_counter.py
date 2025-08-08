@@ -40,8 +40,8 @@ class TokenCounter:
             'calls': self.calls
         }
         
-        # Create output filename with timestamp
-        filename = f'token_usage_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        # Overwrite a single summary file
+        filename = 'token_usage_summary.json'
         filepath = os.path.join(output_dir, filename)
         
         with open(filepath, 'w') as f:

@@ -12,7 +12,7 @@ class AgentBase:
         self.model = ChatGoogleGenerativeAI(
             model="gemma-3-27b-it",
             google_api_key=os.getenv("GOOGLE_API_KEY"),
-            temperature=0.1,
+            temperature=0.7,
         )
 
     def get_response(self, prompt):
