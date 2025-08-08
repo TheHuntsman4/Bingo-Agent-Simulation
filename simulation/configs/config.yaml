@@ -24,7 +24,7 @@ defaults:
   - _self_
   - agent: agent
   - conversation: conversation
-  - environment: time_dependent
+  - environment: time_independent
 
 
 experiment: 

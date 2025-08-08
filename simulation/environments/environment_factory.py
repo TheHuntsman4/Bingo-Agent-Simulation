@@ -4,6 +4,7 @@ from typing import Dict, Type
 from .base_environment import BaseEnvironment
 from .random_pairs import RandomPairsEnvironment
 from .time_dependent import TimeDependentEnvironment
+from .time_independent import TimeIndependentEnvironment
 from .test_environment import TestEnvironment
 from core.agent_manager import AgentManager
 
@@ -11,6 +12,7 @@ class EnvironmentFactory:
     _environments: Dict[str, Type[BaseEnvironment]] = {
         "random_pairs": RandomPairsEnvironment,
         "time_dependent": TimeDependentEnvironment,
+        "time_independent": TimeIndependentEnvironment,
         "test": TestEnvironment
     }
 
