@@ -149,7 +149,7 @@ class ConversationManager:
             memory_summary = self.generate_long_term_memory(agent_id, other_agent_id, history)
             self.memory_manager.update_long_term_memory(agent_id, other_agent_id, memory_summary)
             # Clear short-term memory
-            self.memory_manager.clear_short_term_memory(agent_id)
+            self.memory_manager.clear_short_term_memory(agent_id, other_agent_id)
 
         return history
 
@@ -203,7 +203,7 @@ class ConversationManager:
         agent2_insights = agent2_memory.get("agent_insights", {}).get(agent1, "")
 
         # Get current short-term memory
-        agent1_memory = self.memory_manager.get_short_term_memory(agent1)
+        agent1_memory = self.memory_manager.get_short_term_memory(agent1, agent2)
         conversation_summary = self.safe_digest_conversation(agent1_insights, agent1_memory["current_conversation"]["exchanges"])
         
         return {
@@ -256,8 +256,9 @@ class ConversationManager:
                 
                 # Only clear short-term memory if conversation ended
                 if any("<END OF CONVERSATION>" in resp for exchange in exchanges for resp in exchange.values()):
-                    self.memory_manager.clear_short_term_memory(agent_name)
-                    self.memory_manager.clear_short_term_memory(partner)
+                    self.memory_manager.clear_short_term_memory(agent_name, partner)
+                    self.memory_manager.clear_short_term_memory(partner, agent_name)
+                    
 
     def simulate_conversations(self) -> List[Dict[str, Any]]:
         """Simulate multiple conversations between different agent pairs"""
@@ -303,7 +304,7 @@ class ConversationManager:
                 
                 for agent1, agent2 in current_pairs:
                     print(f"Delaying conversation between {agent1} and {agent2} for 60 seconds.")
-                    time.sleep(60)
+                    # time.sleep(60)
                     # Get memory context
                     memory = self.get_memory_context(agent1, agent2)
                     if memory["conversation_summary"]:

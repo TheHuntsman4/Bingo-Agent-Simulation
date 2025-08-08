@@ -116,13 +116,13 @@ class TimeDependentEnvironment(BaseEnvironment):
     def print_agent_stats(self):
         """Print detailed statistics for all agents"""
         print("\n=== Agent Statistics ===")
-        print("Agent | Status | Conversations | Available Partners | Messages This Step")
-        print("-" * 70)
+        print("Agent            | Status   | Conversations | Available Partners | Messages This Step")
+        print("-" * 78)
         for name, state in self.agent_states.items():
             available = len(set(self.agent_manager.get_agent_names()) - {name} - state.past_partners)
             status = "Talking" if state.state == "conversing" else "Idle"
-            print(f"{name:15} | {status:7} | {len(state.past_partners):12} | {available:17} | {state.messages_this_time_step:17}")
-        print("-" * 70)
+            print(f"{name:15} | {status:8} | {len(state.past_partners):12} | {available:17} | {state.messages_this_time_step:17}")
+        print("-" * 78)
 
     def print_experiment_completion(self):
         """Print experiment completion status and statistics"""
