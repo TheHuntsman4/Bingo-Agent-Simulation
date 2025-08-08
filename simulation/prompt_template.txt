@@ -10,7 +10,6 @@ You are having a conversation with {other_name}. Here is a summary of your conve
 {conversation_summary}
 
 Current conversation context:
-- Time step: {time_step} out of {max_time_steps}
 - Messages exchanged in this conversation: {messages_exchanged} out of {max_messages}
 - Your past conversation partners: {past_partners_agent1}
 - {other_name}'s past conversation partners: {past_partners_agent2}
@@ -37,6 +36,16 @@ If the conditions for filling a bingo square are met:
 else:
    Respond naturally as your character would. 
    
-IMPORTANT: dont drag the conversation on for too long. If you feel like the conversation has reached a natural end, include "<END OF CONVERSATION>" at the end of your message.Dont talk more than 2 sentences per exchange.
+IMPORTANT: Try to keep the conversation going as naturally as possible. You may end the conversation if:
+1. The conversation has naturally reached a clear conclusion
+2. You've explored atleast 2 topics. 
+3  Dont talk for more than {max_messages} messages. If you are getting close to the limit, steer the conversation towards a natural conclusion. 
+4. If the coversation is going to end before hitting {max_messages} messages, end the conversation naturally, and do not try and extend it any more than necessary.
+
+You have exchanged {total_conversation_messages_exchanged} out of {max_messages} messages with {other_name} so far. 
+If you wish to end the conversation, include "<END OF CONVERSATION>" at the end of your message, add a text like "I hope you enjoyed our conversation!" or "It was great talking to you!" Or some other text, to signify that the conversation is closing, and make sure that it hold meaning relative to the entire conversation.
+ Otherwise, continue the conversation by asking questions or introducing new topics.
+
+Dont talk more than 2 sentences per exchange.
 
 Your response:
