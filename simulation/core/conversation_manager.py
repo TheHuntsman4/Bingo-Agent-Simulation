@@ -100,6 +100,7 @@ class ConversationManager:
             turn_responses = {}
             context = self.environment.get_conversation_context(name1, name2, history)
 
+
             for speaker, listener in [(name1, name2), (name2, name1)]:
                 agent_data = self.agent_manager.get_agent(speaker)
                 if not agent_data:
@@ -271,27 +272,194 @@ class ConversationManager:
         if self.cfg.environment.type == "time_dependent":
             print(f"Total possible conversations: {self.environment.total_possible_conversations}")
         else:
-            print(f"Total possible conversations: {len(conversation_pairs)}")
+            print(f"Total possible conversations (Time independent): {len(conversation_pairs)}")
 
+        # if self.cfg.environment.type != "time_dependent":
+        #     for agent1, agent2 in conversation_pairs:
+        #         if conversation_count >= self.cfg.conversation.conversation.max_total_conversations:
+        #             break
+
+        #         self.print_conversation_header(agent1, agent2, True)
+        #         history = self.simulate_single_conversation(agent1, agent2)
+
+        #         # Save conversation
+        #         pair_id = f"{agent1}_{agent2}_{generate_conversation_id()[:8]}"
+        #         pair_log_path = os.path.join(self.cfg.paths.outputs_dir, f"conversation_{pair_id}.json")
+        #         log_conversation(pair_id, history, pair_log_path)
+        #         print(f"\n{bcolors.OKGREEN}📝 Conversation saved to: {pair_log_path}{bcolors.ENDC}")
+
+        #         all_histories.append({
+        #             "pair": (agent1, agent2),
+        #             "dialogue": history
+        #         })
+        #         conversation_count += 1
         if self.cfg.environment.type != "time_dependent":
+            print(f"\n{bcolors.HEADER}=== Starting Time-Independent Environment Simulation ==={bcolors.ENDC}")
             for agent1, agent2 in conversation_pairs:
                 if conversation_count >= self.cfg.conversation.conversation.max_total_conversations:
                     break
 
+                # Header
                 self.print_conversation_header(agent1, agent2, True)
-                history = self.simulate_single_conversation(agent1, agent2)
 
-                # Save conversation
+                # Prep
+                history: List[Dict[str, str]] = []
+                memory = self.get_memory_context(agent1, agent2)
+                if memory["conversation_summary"]:
+                    print(f"\n{bcolors.OKCYAN}📜 Previous conversation context:{bcolors.ENDC}")
+                    print(f"{bcolors.OKCYAN}{memory['conversation_summary']}{bcolors.ENDC}")
+
+                # Converse until the environment says stop
+                while self.environment.should_continue_conversation(history):
+                    turn_responses: Dict[str, str] = {}
+
+                    # Update context each loop so current_turn/round can be accurate
+                    context = self.environment.get_conversation_context(agent1, agent2, history) or {}
+                    # Fallbacks for templates that expect these
+                    context.setdefault("current_turn", len(history))
+                    context.setdefault("max_turns", self.cfg.conversation.conversation.turns_per_conversation)
+
+                    for speaker, listener in [(agent1, agent2), (agent2, agent1)]:
+                        agent_data = self.agent_manager.get_agent(speaker)
+                        if not agent_data:
+                            continue
+
+                        # Pull last exchange snippet for nicer context stitching
+                        st_mem = self.memory_manager.get_short_term_memory(speaker)
+                        last_exchange = st_mem["current_conversation"]["exchanges"][-1] if len(st_mem["current_conversation"]["exchanges"]) > 0 else ""
+
+                        # Build richer memory context like time-dependent branch
+                        memory_context = ""
+                        if memory["previous_insights_about_partner"]:
+                            memory_context += f"\nWhat you know about {listener}: {memory['previous_insights_about_partner']}"
+                        if memory["partner_previous_insights"]:
+                            memory_context += f"\nWhat {listener} knows about you: {memory['partner_previous_insights']}"
+                        if memory["conversation_summary"]:
+                            memory_context += f"\n\nPrevious conversation:\n{memory['conversation_summary']}"
+                        memory_context += f"\n\nThe conversation till this point:\n {last_exchange}\n{turn_responses}"
+
+                        # Board stats (safe even if board file doesn’t exist)
+                        board = self.bingo_manager.get_agent_bingo(speaker)
+                        board_state = self.bingo_manager.get_agent_board_state(speaker) or {"filled_squares": 0, "unfilled_squares": 0}
+                        print(board_state)
+
+                        # Short-term memory for counts
+                        st_mem = self.memory_manager.get_short_term_memory(speaker)
+                        exchanges_so_far = len(st_mem["current_conversation"]["exchanges"]) if st_mem else 0
+                        total_conversation_messages_exchanged = exchanges_so_far * 2
+
+                        # Derive a “round as time step” if context provides it
+                        time_step_val = context.get("round_index", 0)
+                        max_time_steps_val = context.get("total_rounds", 0)
+
+                        prompt_vars = {
+                            "agent_curr_bingo_board": board,
+                            "num_filled_squares": board_state["filled_squares"],
+                            "num_unfilled_squares": board_state["unfilled_squares"],
+                            "name": speaker,
+                            "personality": agent_data["personality"],
+                            "other_name": listener,
+                            "conversation_summary": memory_context,
+
+                            # Provide ALL TD-template keys with safe values
+                            "time_step": time_step_val,
+                            "max_time_steps": max_time_steps_val,
+                            "messages_exchanged": exchanges_so_far,  # msgs from this speaker so far
+                            "max_messages": self.cfg.conversation.conversation.turns_per_conversation,  # sensible cap
+                            "total_conversation_messages_exchanged": total_conversation_messages_exchanged,
+                            "past_partners_agent1": [],   # or use long-term memory keys if you prefer
+                            "past_partners_agent2": [],
+                            "last_exchange": last_exchange,
+
+                            **context,
+                        }
+
+                        prompt = self.agent_manager.prompt_template.format(**prompt_vars)
+
+                        try:
+                            response = self.agent_manager.safe_get_response(agent_data["agent"], prompt)
+                            if not response:
+                                continue
+
+                            # Handle bingo tags exactly like the time-dependent branch (with early/irrelevant-claim guard)
+                            if "<FILL IN BINGO>" in response:
+                                bingo_text = response.split("<FILL IN BINGO>")[1].split("</FILL IN BINGO>")[0]
+                                response = response.replace(f"<FILL IN BINGO>{bingo_text}</FILL IN BINGO>", "")
+
+                                # Default allow, then disqualify with checks
+                                should_update = True
+
+                                st_mem = self.memory_manager.get_short_term_memory(speaker)
+                                if not st_mem or len(st_mem['current_conversation']['exchanges']) <= 1:
+                                    print(f"\n{bcolors.WARNING}⚠️ {speaker} attempted to fill bingo too early in the conversation. Ignoring.{bcolors.ENDC}")
+                                    should_update = False
+                                else:
+                                    # Pull last ~2 messages by the listener to validate claim relevance
+                                    last_exchanges = st_mem['current_conversation']['exchanges']
+                                    other_msgs = []
+                                    for exchange in reversed(last_exchanges):
+                                        if listener in exchange:
+                                            other_msgs.append(exchange[listener])
+                                            if len(other_msgs) >= 2:
+                                                break
+                                    if not other_msgs:
+                                        print(f"\n{bcolors.WARNING}⚠️ No previous messages from {listener} found. Ignoring bingo attempt.{bcolors.ENDC}")
+                                        should_update = False
+                                    else:
+                                        import re as _re
+                                        other_text = " ".join(other_msgs)
+                                        bingo_keywords = [w.lower() for w in re.findall(r"\b\w+\b", bingo_text) if len(w) > 3]
+                                        other_keywords = [w.lower() for w in re.findall(r"\b\w+\b", other_text) if len(w) > 3]
+                                        overlap = [w for w in bingo_keywords if w in other_keywords]
+                                        if len(overlap) < 2 and (len(bingo_keywords) == 0 or len(overlap) / len(bingo_keywords) < 0.2):
+                                            print(f"\n{bcolors.WARNING}⚠️ Bingo attempt by {speaker} doesn't match conversation context. Ignoring.{bcolors.ENDC}")
+                                            should_update = False
+
+                                if should_update:
+                                    self.bingo_manager.update_agent_bingo(speaker, bingo_text, matched_agent=listener)
+                                    print(f"\n{bcolors.OKGREEN}✅ Bingo board updated for {speaker} with the content: {bingo_text}{bcolors.ENDC}")
+
+                            # Print & record
+                            color = bcolors.OKBLUE if speaker == agent1 else bcolors.OKGREEN
+                            print(self._format_message(speaker, response, color))
+                            turn_responses[speaker] = response
+
+                            if self.token_counter:
+                                self.token_counter.add_api_call(prompt=prompt, response=response)
+                        except Exception as e:
+                            print(f"\n{bcolors.FAIL}❌ Error during {speaker}'s turn: {e}{bcolors.ENDC}")
+                            continue
+
+                    if turn_responses:
+                        # Collect into this conversation’s history
+                        history.append(turn_responses)
+                        # Update short-term memories for both agents
+                        self.update_conversation_memory(agent1, agent2, turn_responses)
+
+                        # End marker detection (same as TD)
+                        if any("<END OF CONVERSATION>" in resp for resp in turn_responses.values()):
+                            mem = self.memory_manager.get_short_term_memory(agent1) or self.memory_manager.get_short_term_memory(agent2)
+                            exchanges = len(mem['current_conversation']['exchanges']) if mem else 'unknown'
+                            print(f"\\n{bcolors.OKGREEN}🏁 Conversation naturally ended after {exchanges} exchanges{bcolors.ENDC}")
+                            break
+                    else:
+                        break
+
+                # Finalize: long-term memories and clear ST memories (mirrors simulate_single_conversation)
+                for a, b in [(agent1, agent2), (agent2, agent1)]:
+                    summary = self.generate_long_term_memory(a, b, history)
+                    self.memory_manager.update_long_term_memory(a, b, summary)
+                    self.memory_manager.clear_short_term_memory(a, b)
+
+                # Save conversation log
                 pair_id = f"{agent1}_{agent2}_{generate_conversation_id()[:8]}"
                 pair_log_path = os.path.join(self.cfg.paths.outputs_dir, f"conversation_{pair_id}.json")
                 log_conversation(pair_id, history, pair_log_path)
-                print(f"\n{bcolors.OKGREEN}📝 Conversation saved to: {pair_log_path}{bcolors.ENDC}")
+                print(f"\\n{bcolors.OKGREEN}📝 Conversation saved to: {pair_log_path}{bcolors.ENDC}")
 
-                all_histories.append({
-                    "pair": (agent1, agent2),
-                    "dialogue": history
-                })
+                all_histories.append({"pair": (agent1, agent2), "dialogue": history})
                 conversation_count += 1
+
         else:
             print(f"\n{bcolors.HEADER}=== Starting Time-Dependent Environment Simulation ==={bcolors.ENDC}")
             max_time_steps = self.cfg.environment.settings.time_dependent.max_time_steps
