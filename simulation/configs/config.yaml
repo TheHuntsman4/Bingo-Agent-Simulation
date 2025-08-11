@@ -2,7 +2,7 @@
 paths:
   base_dir: ${hydra:runtime.cwd}/simulation
   outputs_dir: outputs
-  agents_dir: agents_personas
+  agents_dir: agent_personas
   bingo_board_dir: bingo_boards/input
   bingo_output_dir: bingo_boards_output
   bingo_master_file: bingo_boards/alumni-simple-boards.json

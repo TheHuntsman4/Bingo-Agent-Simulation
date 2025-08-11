@@ -107,10 +107,10 @@ class ConversationManager:
 
                 prompt = self.agent_manager.prompt_template.format(
                     name=speaker,
-                    personality=agent_data["personality"],
                     other_name=listener,
                     conversation_summary=conversation_digest,
-                    **context
+                    **context,
+                    **agent_data["personality"]  # Unpack all personality fields from YAML
                 )
 
                 try:
@@ -228,6 +228,9 @@ class ConversationManager:
         
         for agent_name in self.environment.agent_states.keys():
             memory = self.memory_manager.get_short_term_memory(agent_name)
+            if not memory or "current_conversation" not in memory or not memory["current_conversation"].get("partner"):
+                continue
+                
             partner = memory["current_conversation"]["partner"]
             
             if not partner or (agent_name, partner) in processed_pairs or (partner, agent_name) in processed_pairs:
@@ -237,7 +240,7 @@ class ConversationManager:
             processed_pairs.add((agent_name, partner))
             
             # Get the full conversation history
-            exchanges = memory["current_conversation"]["exchanges"]
+            exchanges = memory["current_conversation"].get("exchanges", [])
             if exchanges:
                 # Generate a summary of the conversation so far
                 conversation_text = "\n".join([
@@ -304,7 +307,7 @@ class ConversationManager:
                 
                 for agent1, agent2 in current_pairs:
                     print(f"Delaying conversation between {agent1} and {agent2} for 60 seconds.")
-                    # time.sleep(60)
+                    time.sleep(60)
                     # Get memory context
                     memory = self.get_memory_context(agent1, agent2)
                     if memory["conversation_summary"]:
@@ -344,7 +347,6 @@ class ConversationManager:
                                 num_filled_squares = self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
                                 num_unfilled_squares = self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
                                 name=speaker,
-                                personality=agent_data["personality"],
                                 other_name=listener,
                                 conversation_summary=memory_context,
                                 time_step=t + 1,
@@ -354,7 +356,8 @@ class ConversationManager:
                                 total_conversation_messages_exchanged=total_messages_exchanged,
                                 past_partners_agent1=self.environment.agent_states[speaker].past_partners,
                                 past_partners_agent2=self.environment.agent_states[listener].past_partners,
-                                last_exchange=last_exchange
+                                last_exchange=last_exchange,
+                                **agent_data["personality"]  # Unpack all personality fields from YAML
                             )
                             
                             # prompt_tokens = len(str(prompt)) // 4

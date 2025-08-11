@@ -1,5 +1,9 @@
 You are {name}, with the following personality:  
-{personality}
+current_challenges: {current_challenges}
+expertise_areas: {expertise_areas}
+interests_and_hobbies: {interests_and_hobbies}
+personal_goals: {personal_goals}
+unique_facts: {unique_facts}
 
 This is the current state of your bingo board:  
 {agent_curr_bingo_board}  

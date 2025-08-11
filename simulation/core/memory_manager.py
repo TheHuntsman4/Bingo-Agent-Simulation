@@ -74,43 +74,57 @@ class MemoryManager:
                                       will be used in the archive filename.
         """
         file_path = self._get_memory_file_path(agent_id, "short_term")
-        if os.path.exists(file_path):
-            # Read the current memory
-            with open(file_path, 'r') as f:
-                memory = json.load(f)
-            
-            
-            partner_in_exchanges = set(memory["current_conversation"]["exchanges"][-1].keys())
-            if partner_id not in partner_in_exchanges:
-                print(f"Partner ID not found in exchanges: {partner_id}")
-                partner_id = list(partner_in_exchanges - set([agent_id]))[0]
-                print(f"Updating Partner ID to: {partner_id}")
-                memory["current_conversation"]["partner"] = partner_id
-            
-            # Add timestamp to memory
-            memory["archived_at"] = datetime.now().isoformat()
-            
-            # Create archive filename using both agent IDs if partner_id is provided
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            archive_filename = f"{agent_id}_{partner_id}.json"
+        try:
+            if os.path.exists(file_path):
+                # Read the current memory
+                with open(file_path, 'r') as f:
+                    memory = json.load(f)
                 
-            archive_path = os.path.join(self.short_term_path, "archived", archive_filename)
-            
-            # Ensure archive directory exists
-            os.makedirs(os.path.join(self.short_term_path, "archived"), exist_ok=True)
-            
-            # Save to archive
-            with open(archive_path, 'w') as f:
-                json.dump(memory, f, indent=2)
-            
-            # Clear the current memory file and reset for new conversations
+                # Try to get partner ID from exchanges, but don't fail if we can't
+                try:
+                    if memory["current_conversation"]["exchanges"]:
+                        partner_in_exchanges = set(memory["current_conversation"]["exchanges"][-1].keys())
+                        other_ids = partner_in_exchanges - set([agent_id])
+                        if other_ids:
+                            partner_id = list(other_ids)[0]
+                            print(f"Found partner ID in exchanges: {partner_id}")
+                except Exception as e:
+                    print(f"Skipping partner ID check due to error: {e}")
+                    partner_id = partner_id or "unknown_partner"
+                
+                # Add timestamp to memory
+                memory["archived_at"] = datetime.now().isoformat()
+                
+                # Create archive filename using both agent IDs and timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                archive_filename = f"{agent_id}_{partner_id}_{timestamp}.json"
+                    
+                archive_path = os.path.join(self.short_term_path, "archived", archive_filename)
+                
+                # Ensure archive directory exists
+                os.makedirs(os.path.join(self.short_term_path, "archived"), exist_ok=True)
+                
+                # Save to archive
+                with open(archive_path, 'w') as f:
+                    json.dump(memory, f, indent=2)
+        except Exception as e:
+            print(f"Error archiving memory for agent {agent_id}: {e}")
+            # If anything goes wrong during archiving, we'll just skip it
+            pass
+        
+        # Always create a fresh memory file, regardless of what happened above
+        try:
             with open(file_path, 'w') as f:
                 json.dump({
                     "current_conversation": {
-                        "partner": partner_id,
+                        "partner": partner_id or "unknown_partner",
                         "exchanges": []
                     }
                 }, f, indent=2)
+        except Exception as e:
+            print(f"Error creating new memory file for agent {agent_id}: {e}")
+            # If we can't even create a new file, something is seriously wrong
+            raise
 
     def get_long_term_memory(self, agent_id: str) -> Dict[str, Any]:
         """Retrieve agent's long-term memory"""
