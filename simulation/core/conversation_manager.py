@@ -34,6 +34,37 @@ class ConversationManager:
         # Set the global token counter for log_memory.py (Remove this if this doesnt work properly)
         global global_token_counter
         global_token_counter = token_counter
+        
+        # Load both prompt templates
+        self._load_prompt_template()
+
+    def _load_prompt_template(self) -> None:
+        # loads the template used for formatting prompts to agents
+        base_dir = os.path.dirname(self.cfg.paths.base_dir)
+        template_path = os.path.join(base_dir, self.cfg.agent.agent.prompt_template_file)
+        txt_template_path = os.path.join(base_dir, "prompt_template_txt_personality.txt")
+        
+        try:
+            # Load YAML template
+            with open(template_path, "r") as f:
+                self.yaml_prompt_template = f.read().strip()
+            print(f"Loaded YAML prompt template from {template_path}")
+            
+            # Load TXT template
+            with open(txt_template_path, "r") as f:
+                self.txt_prompt_template = f.read().strip()
+            print(f"Loaded TXT prompt template from {txt_template_path}")
+            
+            # Update agent manager's template to YAML template for backward compatibility
+            if hasattr(self.agent_manager, 'prompt_template'):
+                self.agent_manager.prompt_template = self.yaml_prompt_template
+                
+        except Exception as e:
+            print(f"Error loading prompt templates: {e}")
+            # Fallback templates
+            self.yaml_prompt_template = "You are {name}. Your personality: {personality}. You are talking to {other_name}. Previous conversation: {conversation_summary}"
+            self.txt_prompt_template = self.yaml_prompt_template
+            print("Using fallback prompt templates")
 
     def safe_digest_conversation(self, prev_digest: str, history: str) -> str:
         """Safely digest conversation with retry logic"""
@@ -341,24 +372,50 @@ class ConversationManager:
                             # Get conversation history
                             short_term_mem = self.memory_manager.get_short_term_memory(speaker)
                             total_messages_exchanged = len(short_term_mem['current_conversation']['exchanges'])*2
+                            # print(f"Agent {speaker} personality: length of conversation: {len(memory_context)}")
                             
-                            prompt = self.agent_manager.prompt_template.format(
-                                agent_curr_bingo_board=self.bingo_manager.get_agent_bingo(speaker),
-                                num_filled_squares = self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
-                                num_unfilled_squares = self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
-                                name=speaker,
-                                other_name=listener,
-                                conversation_summary=memory_context,
-                                time_step=t + 1,
-                                max_time_steps=max_time_steps,
-                                messages_exchanged=self.environment.agent_states[speaker].messages_in_current_conversation,
-                                max_messages=self.cfg.environment.settings.time_dependent.max_messages_per_conversation,
-                                total_conversation_messages_exchanged=total_messages_exchanged,
-                                past_partners_agent1=self.environment.agent_states[speaker].past_partners,
-                                past_partners_agent2=self.environment.agent_states[listener].past_partners,
-                                last_exchange=last_exchange,
-                                **agent_data["personality"]  # Unpack all personality fields from YAML
-                            )
+                            # Choose prompt template based on agent's data format
+                            is_txt_personality = isinstance(agent_data["personality"], str)
+                            prompt_template = self.txt_prompt_template if is_txt_personality else self.yaml_prompt_template
+                            
+                            if is_txt_personality:
+                                # For TXT files, the entire content is the personality
+                                prompt = prompt_template.format(
+                                    agent_curr_bingo_board=self.bingo_manager.get_agent_bingo(speaker),
+                                    num_filled_squares=self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
+                                    num_unfilled_squares=self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
+                                    name=speaker,
+                                    other_name=listener,
+                                    conversation_summary=memory_context,
+                                    current_turn = t,
+                                    total_turns = max_time_steps,
+                                    messages_exchanged=self.environment.agent_states[speaker].messages_in_current_conversation,
+                                    max_messages=self.cfg.environment.settings.time_dependent.max_messages_per_conversation,
+                                    total_conversation_messages_exchanged=total_messages_exchanged,
+                                    past_partners_agent1=self.environment.agent_states[speaker].past_partners,
+                                    past_partners_agent2=self.environment.agent_states[listener].past_partners,
+                                    last_exchange=last_exchange,
+                                    personality=agent_data["personality"]  # Pass entire content as personality
+                                )
+                            else:
+                                # For YAML files, unpack all personality fields
+                                prompt = prompt_template.format(
+                                    agent_curr_bingo_board=self.bingo_manager.get_agent_bingo(speaker),
+                                    num_filled_squares=self.bingo_manager.get_agent_board_state(speaker)["filled_squares"],
+                                    num_unfilled_squares=self.bingo_manager.get_agent_board_state(speaker)["unfilled_squares"],
+                                    name=speaker,
+                                    other_name=listener,
+                                    conversation_summary=memory_context,
+                                    current_turn = t,
+                                    total_turns = max_time_steps,
+                                    messages_exchanged=self.environment.agent_states[speaker].messages_in_current_conversation,
+                                    max_messages=self.cfg.environment.settings.time_dependent.max_messages_per_conversation,
+                                    total_conversation_messages_exchanged=total_messages_exchanged,
+                                    past_partners_agent1=self.environment.agent_states[speaker].past_partners,
+                                    past_partners_agent2=self.environment.agent_states[listener].past_partners,
+                                    last_exchange=last_exchange,
+                                    **agent_data["personality"]  # Unpack all personality fields from YAML
+                                )
                             
                             # prompt_tokens = len(str(prompt)) // 4
                             # print(f"🗣️  {speaker} submitting prompt with ~{prompt_tokens} tokens...")
@@ -439,6 +496,41 @@ class ConversationManager:
                                     speaker_mem = self.memory_manager.get_short_term_memory(agent1) or self.memory_manager.get_short_term_memory(agent2)
                                     exchanges = len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'
                                     print(f"\n{bcolors.OKGREEN}🏁 Conversation naturally ended after {exchanges} exchanges{bcolors.ENDC}")
+                                    
+                                    # Generate final long-term memory when conversation ends
+                                    try:
+                                        # Get full conversation history
+                                        agent1_mem = self.memory_manager.get_short_term_memory(agent1, agent2)
+                                        agent2_mem = self.memory_manager.get_short_term_memory(agent2, agent1)
+                                        
+                                        # Combine exchanges from both agents
+                                        all_exchanges = agent1_mem.get("current_conversation", {}).get("exchanges", [])
+                                        all_exchanges.extend(agent2_mem.get("current_conversation", {}).get("exchanges", []))
+                                        
+                                        if all_exchanges:
+                                            conversation_text = "\n".join([
+                                                f"{k}: {v}" for exchange in all_exchanges for k, v in exchange.items()
+                                            ])
+                                            
+                                            # Generate final summaries for both agents
+                                            for agent_id, other_agent_id in [(agent1, agent2), (agent2, agent1)]:
+                                                existing_memory = self.memory_manager.get_long_term_memory(agent_id)
+                                                existing_insights = existing_memory.get("agent_insights", {}).get(other_agent_id, "")
+                                                
+                                                if existing_insights:
+                                                    final_summary = self.safe_digest_conversation(existing_insights, conversation_text)
+                                                else:
+                                                    final_summary = self.safe_digest_conversation("", conversation_text)
+                                                
+                                                summary_text = final_summary.content if hasattr(final_summary, 'content') else str(final_summary)
+                                                self.memory_manager.update_long_term_memory(agent_id, other_agent_id, summary_text)
+                                                print(f"\n{bcolors.OKGREEN}📝 Final long-term memory updated for {agent_id} about {other_agent_id}{bcolors.ENDC}")
+                                                
+                                                # Clear short-term memory
+                                                self.memory_manager.clear_short_term_memory(agent_id, other_agent_id)
+                                                
+                                    except Exception as e:
+                                        print(f"{bcolors.FAIL}Error generating final long-term memory: {e}{bcolors.ENDC}")
                             
                             # Update agent states
                             self.environment.update_agent_states(agent1, agent2, ended=conversation_ended)

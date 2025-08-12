@@ -25,11 +25,14 @@ class AgentManager:
             self.prompt_template = "You are {name}. Your personality: {personality}. You are talking to {other_name}. Previous conversation: {conversation_summary}"
 
     def _load_agents(self, cfg: DictConfig) -> None:
-        # loads agent personalities from YAML files and creates agent instances
+        # loads agent personalities from YAML or TXT files and creates agent instances
         max_agents = cfg.experiment["max_agents"]
         print("Max agents: ", max_agents)
         print(f"Loading agents from {self.cfg.paths.agents_dir}")
-        agent_files = [f for f in os.listdir(self.cfg.paths.agents_dir) if f.endswith(".yaml")]
+        
+        # Get both YAML and TXT files
+        agent_files = [f for f in os.listdir(self.cfg.paths.agents_dir) 
+                      if f.endswith((".yaml", ".txt"))]
         print(f"Found {len(agent_files)} agent files")
         
         if max_agents < len(agent_files):
@@ -38,15 +41,25 @@ class AgentManager:
         
         for fname in agent_files:
             try:
-                with open(os.path.join(self.cfg.paths.agents_dir, fname), "r") as f:
-                    persona = yaml.safe_load(f)
-                    name = persona.get('ID', fname[:-5])  # Use ID from YAML or filename without .yaml
-                    # Create a dictionary of all persona fields except ID
-                    personality_data = {k: v for k, v in persona.items() if k != 'ID'}
-                    self.agents[name] = {
-                        "agent": AgentBase(),
-                        "personality": personality_data
-                    }
+                file_path = os.path.join(self.cfg.paths.agents_dir, fname)
+                name = fname.rsplit('.', 1)[0]  # Remove extension to get name
+                
+                if fname.endswith('.yaml'):
+                    # Load YAML file
+                    with open(file_path, "r") as f:
+                        persona = yaml.safe_load(f)
+                        name = persona.get('ID', name)  # Use ID from YAML if available
+                        # Create a dictionary of all persona fields except ID
+                        personality_data = {k: v for k, v in persona.items() if k != 'ID'}
+                else:
+                    # Load TXT file - entire content becomes the personality
+                    with open(file_path, "r") as f:
+                        personality_data = f.read().strip()
+                
+                self.agents[name] = {
+                    "agent": AgentBase(),
+                    "personality": personality_data
+                }
             except Exception as e:
                 print(f"Error loading agent file {fname}: {e}")
                 continue

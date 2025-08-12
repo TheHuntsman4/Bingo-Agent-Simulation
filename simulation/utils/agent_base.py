@@ -14,7 +14,7 @@ class AgentBase:
         # sets up the AI model with default settings
         self.model = ChatGoogleGenerativeAI(
             model="gemma-3-27b-it",
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
+            google_api_key=os.getenv("GOOGLE_API_KEY_4"),
             temperature=0.7,
         )
 
