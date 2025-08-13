@@ -107,8 +107,49 @@ class ConversationManager:
 
     def generate_long_term_memory(self, agent_id: str, other_agent_id: str, full_history: List[Dict[str, str]]) -> str:
         """Generate long-term memory entry from conversation history"""
-        history_text = "\n".join([f"{k}: {v}" for turn in full_history for k, v in turn.items()])
-        memory_prompt = f"I just talked to {other_agent_id} and this is all that happened:\n{history_text}\n\nI need to condense this into a summary of what I learned about them, focusing on their personality, interests, and any important information they shared. Summary:"
+        if not full_history or len(full_history) == 0:
+            return f"Had a brief interaction with {other_agent_id} but no substantial conversation occurred."
+        
+        # Filter out empty exchanges and clean the history
+        cleaned_history = []
+        for turn in full_history:
+            if turn and isinstance(turn, dict):
+                # Remove any empty or None values
+                cleaned_turn = {k: v for k, v in turn.items() if v and isinstance(v, str) and v.strip()}
+                if cleaned_turn:
+                    cleaned_history.append(cleaned_turn)
+        
+        if not cleaned_history:
+            return f"Had a conversation with {other_agent_id} but no meaningful content was exchanged."
+        
+        # Create a more structured history text
+        history_lines = []
+        for i, turn in enumerate(cleaned_history, 1):
+            for speaker, message in turn.items():
+                # Clean the message (remove bingo tags, etc.)
+                clean_message = message.replace("<FILL IN BINGO>", "").replace("</FILL IN BINGO>", "")
+                clean_message = clean_message.replace("<END OF CONVERSATION>", "").strip()
+                if clean_message:
+                    history_lines.append(f"{speaker}: {clean_message}")
+        
+        if not history_lines:
+            return f"Had a conversation with {other_agent_id} but no meaningful content was exchanged."
+        
+        history_text = "\n".join(history_lines)
+        
+        # Create a more specific memory prompt
+        memory_prompt = f"""I just had a conversation with {other_agent_id}. Here's what was discussed:
+
+{history_text}
+
+Based on this conversation, I need to create a concise summary of what I learned about {other_agent_id}. Focus on:
+- Their personality traits and characteristics
+- Their interests, hobbies, or passions
+- Any important personal information they shared
+- Their communication style or mannerisms
+- Any memorable moments or insights
+
+Summary:"""
         
         try:
             memory = digest_conversation("", memory_prompt)
@@ -117,10 +158,19 @@ class ConversationManager:
                     prompt=memory_prompt,
                     response=memory.content if hasattr(memory, 'content') else str(memory)
                 )
-            return memory.content if hasattr(memory, 'content') else str(memory)
+            
+            result = memory.content if hasattr(memory, 'content') else str(memory)
+            
+            # Ensure the result is not too long
+            if len(result) > 500:
+                result = result[:500] + "..."
+            
+            return result
+            
         except Exception as e:
-            print(f"{bcolors.FAIL}Error generating long-term memory: {e}{bcolors.ENDC}")
-            return f"Had a conversation with {other_agent_id}. Unable to generate detailed memory due to error."
+            print(f"{bcolors.FAIL}Error generating long-term memory for {agent_id} about {other_agent_id}: {e}{bcolors.ENDC}")
+            # Return a basic summary based on conversation length
+            return f"Had a conversation with {other_agent_id} involving {len(cleaned_history)} exchanges. Unable to generate detailed memory due to technical error."
 
     def simulate_single_conversation(self, name1: str, name2: str) -> List[Dict[str, str]]:
         """Simulate a conversation between two agents"""
@@ -169,8 +219,7 @@ class ConversationManager:
                 history.append(turn_responses)
                 try:
                     turn_text = "\n".join([f"{k}: {v}" for k, v in turn_responses.items()])
-                    # conversation_digest = self.safe_digest_conversation(conversation_digest, turn_text)
-                    conversation_digest = "Some digest"
+                    conversation_digest = self.safe_digest_conversation(conversation_digest, turn_text)
                 except Exception as e:
                     print(f"{bcolors.FAIL}Failed to update digest: {e}{bcolors.ENDC}")
 
@@ -273,26 +322,117 @@ class ConversationManager:
             # Get the full conversation history
             exchanges = memory["current_conversation"].get("exchanges", [])
             if exchanges:
-                # Generate a summary of the conversation so far
-                conversation_text = "\n".join([
-                    f"{k}: {v}" for exchange in exchanges for k, v in exchange.items()
-                ])
-                try:
-                    summary = self.safe_digest_conversation("", conversation_text)
-                    summary_text = summary.content if hasattr(summary, 'content') else str(summary)
-                except Exception as e:
-                    print(f"{bcolors.FAIL}Error generating conversation summary: {e}{bcolors.ENDC}")
-                    summary_text = f"Conversation with {len(exchanges)} exchanges"
+                # Convert exchanges to the format expected by generate_long_term_memory
+                conversation_history = []
+                for exchange in exchanges:
+                    conversation_history.append(exchange)
                 
-                # Update long-term memory for both agents
-                self.memory_manager.update_long_term_memory(agent_name, partner, summary_text)
-                self.memory_manager.update_long_term_memory(partner, agent_name, summary_text)
+                # Generate proper long-term memory using the sophisticated function
+                try:
+                    agent1_memory_summary = self.generate_long_term_memory(agent_name, partner, conversation_history)
+                    agent2_memory_summary = self.generate_long_term_memory(partner, agent_name, conversation_history)
+                    
+                    # Update long-term memory for both agents
+                    self.memory_manager.update_long_term_memory(agent_name, partner, agent1_memory_summary)
+                    self.memory_manager.update_long_term_memory(partner, agent_name, agent2_memory_summary)
+                    
+                    print(f"{bcolors.OKGREEN}✅ Updated long-term memory for {agent_name} and {partner}{bcolors.ENDC}")
+                    
+                except Exception as e:
+                    print(f"{bcolors.FAIL}Error generating long-term memory for {agent_name} and {partner}: {e}{bcolors.ENDC}")
+                    # Fallback to simple summary
+                    conversation_text = "\n".join([
+                        f"{k}: {v}" for exchange in exchanges for k, v in exchange.items()
+                    ])
+                    try:
+                        summary = self.safe_digest_conversation("", conversation_text)
+                        summary_text = summary.content if hasattr(summary, 'content') else str(summary)
+                    except Exception as e2:
+                        print(f"{bcolors.FAIL}Error generating conversation summary: {e2}{bcolors.ENDC}")
+                        summary_text = f"Conversation with {len(exchanges)} exchanges"
+                    
+                    # Update long-term memory for both agents with fallback
+                    self.memory_manager.update_long_term_memory(agent_name, partner, summary_text)
+                    self.memory_manager.update_long_term_memory(partner, agent_name, summary_text)
                 
                 # Only clear short-term memory if conversation ended
                 if any("<END OF CONVERSATION>" in resp for exchange in exchanges for resp in exchange.values()):
                     self.memory_manager.clear_short_term_memory(agent_name, partner)
                     self.memory_manager.clear_short_term_memory(partner, agent_name)
+
+    def _update_ongoing_conversations_memory(self):
+        """Update long-term memory for ongoing conversations that didn't end naturally"""
+        processed_pairs = set()
+        
+        for agent_name in self.environment.agent_states.keys():
+            memory = self.memory_manager.get_short_term_memory(agent_name)
+            if not memory or "current_conversation" not in memory or not memory["current_conversation"].get("partner"):
+                continue
+                
+            partner = memory["current_conversation"]["partner"]
+            
+            if not partner or (agent_name, partner) in processed_pairs or (partner, agent_name) in processed_pairs:
+                continue
+                
+            # Mark this pair as processed
+            processed_pairs.add((agent_name, partner))
+            
+            # Get the full conversation history
+            exchanges = memory["current_conversation"].get("exchanges", [])
+            if exchanges and len(exchanges) > 0:
+                # Check if conversation didn't end naturally (no END OF CONVERSATION marker)
+                conversation_ended_naturally = any("<END OF CONVERSATION>" in resp for exchange in exchanges for resp in exchange.values())
+                
+                if not conversation_ended_naturally:
+                    # Convert exchanges to the format expected by generate_long_term_memory
+                    conversation_history = []
+                    for exchange in exchanges:
+                        conversation_history.append(exchange)
                     
+                    # Generate long-term memory for ongoing conversations
+                    try:
+                        agent1_memory_summary = self.generate_long_term_memory(agent_name, partner, conversation_history)
+                        agent2_memory_summary = self.generate_long_term_memory(partner, agent_name, conversation_history)
+                        
+                        # Update long-term memory for both agents
+                        self.memory_manager.update_long_term_memory(agent_name, partner, agent1_memory_summary)
+                        self.memory_manager.update_long_term_memory(partner, agent_name, agent2_memory_summary)
+                        
+                        print(f"{bcolors.OKGREEN}✅ Updated ongoing conversation memory for {agent_name} and {partner}{bcolors.ENDC}")
+                        
+                    except Exception as e:
+                        print(f"{bcolors.FAIL}Error updating ongoing conversation memory for {agent_name} and {partner}: {e}{bcolors.ENDC}")
+
+    def print_memory_status(self, agent_id: str = None):
+        """Print the current memory status for debugging purposes"""
+        if agent_id:
+            # Print memory for specific agent
+            long_term = self.memory_manager.get_long_term_memory(agent_id)
+            short_term = self.memory_manager.get_short_term_memory(agent_id)
+            
+            print(f"\n{bcolors.HEADER}=== Memory Status for {agent_id} ==={bcolors.ENDC}")
+            print(f"{bcolors.OKCYAN}Long-term memory entries: {len(long_term.get('agent_insights', {}))}{bcolors.ENDC}")
+            for other_agent, memory in long_term.get('agent_insights', {}).items():
+                print(f"  - {other_agent}: {memory[:100]}...")
+            
+            print(f"{bcolors.OKCYAN}Short-term memory:{bcolors.ENDC}")
+            if short_term.get('current_conversation', {}).get('partner'):
+                print(f"  - Current partner: {short_term['current_conversation']['partner']}")
+                print(f"  - Exchanges: {len(short_term['current_conversation'].get('exchanges', []))}")
+            else:
+                print("  - No current conversation")
+        else:
+            # Print memory for all agents
+            print(f"\n{bcolors.HEADER}=== Overall Memory Status ==={bcolors.ENDC}")
+            for agent_name in self.environment.agent_states.keys():
+                long_term = self.memory_manager.get_long_term_memory(agent_name)
+                short_term = self.memory_manager.get_short_term_memory(agent_name)
+                
+                print(f"{bcolors.OKCYAN}{agent_name}:{bcolors.ENDC}")
+                print(f"  - Long-term entries: {len(long_term.get('agent_insights', {}))}")
+                if short_term.get('current_conversation', {}).get('partner'):
+                    print(f"  - Current partner: {short_term['current_conversation']['partner']}")
+                    print(f"  - Exchanges: {len(short_term['current_conversation'].get('exchanges', []))}")
 
     def simulate_conversations(self) -> List[Dict[str, Any]]:
         """Simulate multiple conversations between different agent pairs"""
@@ -338,7 +478,7 @@ class ConversationManager:
                 
                 for agent1, agent2 in current_pairs:
                     print(f"Delaying conversation between {agent1} and {agent2} for 60 seconds.")
-                    time.sleep(60)
+                    # time.sleep(60)
                     # Get memory context
                     memory = self.get_memory_context(agent1, agent2)
                     if memory["conversation_summary"]:
@@ -497,40 +637,27 @@ class ConversationManager:
                                     exchanges = len(speaker_mem['current_conversation']['exchanges']) if speaker_mem else 'unknown'
                                     print(f"\n{bcolors.OKGREEN}🏁 Conversation naturally ended after {exchanges} exchanges{bcolors.ENDC}")
                                     
-                                    # Generate final long-term memory when conversation ends
+                                    # Update long-term memory when conversation ends
                                     try:
                                         # Get full conversation history
-                                        agent1_mem = self.memory_manager.get_short_term_memory(agent1, agent2)
-                                        agent2_mem = self.memory_manager.get_short_term_memory(agent2, agent1)
+                                        agent1_mem = self.memory_manager.get_short_term_memory(agent1)
+                                        agent2_mem = self.memory_manager.get_short_term_memory(agent2)
                                         
-                                        # Combine exchanges from both agents
-                                        all_exchanges = agent1_mem.get("current_conversation", {}).get("exchanges", [])
-                                        all_exchanges.extend(agent2_mem.get("current_conversation", {}).get("exchanges", []))
-                                        
-                                        if all_exchanges:
-                                            conversation_text = "\n".join([
-                                                f"{k}: {v}" for exchange in all_exchanges for k, v in exchange.items()
-                                            ])
+                                        if agent1_mem and agent1_mem.get("current_conversation", {}).get("exchanges"):
+                                            conversation_history = agent1_mem["current_conversation"]["exchanges"]
                                             
-                                            # Generate final summaries for both agents
-                                            for agent_id, other_agent_id in [(agent1, agent2), (agent2, agent1)]:
-                                                existing_memory = self.memory_manager.get_long_term_memory(agent_id)
-                                                existing_insights = existing_memory.get("agent_insights", {}).get(other_agent_id, "")
-                                                
-                                                if existing_insights:
-                                                    final_summary = self.safe_digest_conversation(existing_insights, conversation_text)
-                                                else:
-                                                    final_summary = self.safe_digest_conversation("", conversation_text)
-                                                
-                                                summary_text = final_summary.content if hasattr(final_summary, 'content') else str(final_summary)
-                                                self.memory_manager.update_long_term_memory(agent_id, other_agent_id, summary_text)
-                                                print(f"\n{bcolors.OKGREEN}📝 Final long-term memory updated for {agent_id} about {other_agent_id}{bcolors.ENDC}")
-                                                
-                                                # Clear short-term memory
-                                                self.memory_manager.clear_short_term_memory(agent_id, other_agent_id)
-                                                
+                                            # Generate long-term memory for both agents
+                                            agent1_memory_summary = self.generate_long_term_memory(agent1, agent2, conversation_history)
+                                            agent2_memory_summary = self.generate_long_term_memory(agent2, agent1, conversation_history)
+                                            
+                                            # Update long-term memory
+                                            self.memory_manager.update_long_term_memory(agent1, agent2, agent1_memory_summary)
+                                            self.memory_manager.update_long_term_memory(agent2, agent1, agent2_memory_summary)
+                                            
+                                            print(f"{bcolors.OKGREEN}✅ Updated long-term memory for {agent1} and {agent2} after conversation ended{bcolors.ENDC}")
+                                            
                                     except Exception as e:
-                                        print(f"{bcolors.FAIL}Error generating final long-term memory: {e}{bcolors.ENDC}")
+                                        print(f"{bcolors.FAIL}Error updating long-term memory after conversation ended: {e}{bcolors.ENDC}")
                             
                             # Update agent states
                             self.environment.update_agent_states(agent1, agent2, ended=conversation_ended)
@@ -542,6 +669,9 @@ class ConversationManager:
                 
                 # Process all conversations at the end of the time step
                 self.end_time_step()
+                
+                # Update long-term memory for any ongoing conversations that didn't end naturally
+                self._update_ongoing_conversations_memory()
                 
                 # Print agent statistics at the end of each time step
                 self.environment.print_agent_stats()
