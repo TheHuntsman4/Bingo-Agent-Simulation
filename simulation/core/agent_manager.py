@@ -80,11 +80,13 @@ class AgentManager:
                     if attempt == self.cfg.agent.agent.max_retries - 1:
                         raise
         return None
+    
+    def safe_digest
 
     def get_agent_names(self) -> list:
         # returns list of all available agent names
         return list(self.agents.keys())
 
-    def get_agent(self, name: str) -> Dict[str, Any]:
+    def get_agent_data(self, name: str) -> Dict[str, Any]:
         # gets an agent by their name
         return self.agents.get(name) 

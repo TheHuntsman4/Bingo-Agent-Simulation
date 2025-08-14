@@ -2,8 +2,8 @@ from typing import List, Dict, Any, Set, Tuple
 import random
 from omegaconf import DictConfig
 from core.agent_manager import AgentManager
-from core.memory_manager import MemoryManager
-from .base_environment import BaseEnvironment
+from simulation.environments.time_dependent.memory_manager import MemoryManager
+from ..base_environment import BaseEnvironment
 
 class AgentState:
     def __init__(self, name: str):
@@ -242,7 +242,7 @@ class TimeDependentEnvironment(BaseEnvironment):
             
         self.print_conversation_status(agent1, agent2)
 
-    def get_conversation_pairs(self) -> List[tuple]:
+    def get_conversation_participants(self) -> List[tuple]:
         """Get all current conversation pairs"""
         # If experiment is complete, return no pairs
         if self.experiment_complete:

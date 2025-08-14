@@ -1,0 +1,148 @@
+import os
+import json
+from typing import Dict, List, Any
+from omegaconf import DictConfig
+from datetime import datetime
+
+class MemoryManager:
+    def __init__(self, cfg: DictConfig):
+        self.cfg = cfg
+        
+        self.base_memory_path = os.path.join(os.path.dirname(cfg.paths.base_dir), cfg.paths.outputs_dir, cfg.paths.agent_memories_dir, cfg.experiment.experiment_id)
+        self.long_term_path = os.path.join(self.base_memory_path, cfg.paths.long_term_memories)
+        self.short_term_path = os.path.join(self.base_memory_path, cfg.paths.short_term_memories)
+        
+        self._ensure_memory_dirs()
+
+    def _ensure_memory_dirs(self):
+        """Ensure memory directories exist"""
+        os.makedirs(self.long_term_path, exist_ok=True)
+        os.makedirs(self.short_term_path, exist_ok=True)
+
+    def _get_memory_file_path(self, agent_id: str, memory_type: str) -> str:
+        """Get the path to an agent's memory file"""
+        base_path = self.long_term_path if memory_type == "long_term" else self.short_term_path
+        return os.path.join(base_path, f"{agent_id}.json")
+
+    def get_long_term_memory(self, agent_id: str) -> Dict[str, Any]:
+        """Retrieve agent's long-term memory"""
+        file_path = self._get_memory_file_path(agent_id, "long_term")
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        return {"agent_insights": {}}
+
+    def get_short_term_memory(self, agent_id: str, partner_id: str = None) -> Dict[str, Any]:
+        """Retrieve agent's short-term memory"""
+        file_path = self._get_memory_file_path(agent_id, "short_term")
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        return {"current_conversation": {"partner": partner_id, "exchanges": []}} 
+
+
+    def update_long_term_memory(self, agent_id: str, other_agent_id: str, conversation_summary: str):
+        """Update agent's long-term memory with conversation insights"""
+        file_path = self._get_memory_file_path(agent_id, "long_term")
+        
+        # Load existing memory or create new
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                memory = json.load(f)
+        else:
+            memory = {"agent_insights": {}}
+        
+        # Update or create entry for other agent
+        memory["agent_insights"][other_agent_id] = conversation_summary
+        
+        # Save updated memory
+        with open(file_path, 'w') as f:
+            json.dump(memory, f, indent=2)
+
+
+
+    def update_short_term_memory(self, agent_id: str, other_agent_id: str, exchange: Dict[str, str]):
+        """Update agent's short-term memory with the latest exchange"""
+        file_path = self._get_memory_file_path(agent_id, "short_term")
+        
+        # Load existing memory or create new
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                memory = json.load(f)
+        else:
+            memory = {
+                "current_conversation": {
+                    "partner": other_agent_id,
+                    "exchanges": []
+                }
+            }
+        
+        # Add new exchange
+        memory["current_conversation"]["exchanges"].append(exchange)
+        
+        # Save updated memory
+        with open(file_path, 'w') as f:
+            json.dump(memory, f, indent=2)
+
+
+    def clear_short_term_memory(self, agent_id: str, partner_id: str = None):
+        """Archive agent's short-term memory after conversation ends
+        
+        Args:
+            agent_id (str): ID of the agent whose memory is being cleared
+            partner_id (str, optional): ID of the conversation partner. If provided,
+                                      will be used in the archive filename.
+        """
+        file_path = self._get_memory_file_path(agent_id, "short_term")
+        try:
+            if os.path.exists(file_path):
+                # Read the current memory
+                with open(file_path, 'r') as f:
+                    memory = json.load(f)
+                
+                # Try to get partner ID from exchanges, but don't fail if we can't
+                try:
+                    if memory["current_conversation"]["exchanges"]:
+                        partner_in_exchanges = set(memory["current_conversation"]["exchanges"][-1].keys())
+                        other_ids = partner_in_exchanges - set([agent_id])
+                        if other_ids:
+                            partner_id = list(other_ids)[0]
+                            print(f"Found partner ID in exchanges: {partner_id}")
+                except Exception as e:
+                    print(f"Skipping partner ID check due to error: {e}")
+                    partner_id = partner_id or "unknown_partner"
+                
+                # Add timestamp to memory
+                memory["archived_at"] = datetime.now().isoformat()
+                
+                # Create archive filename using both agent IDs and timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                archive_filename = f"{agent_id}_{partner_id}_{timestamp}.json"
+                    
+                archive_path = os.path.join(self.short_term_path, "archived", archive_filename)
+                
+                # Ensure archive directory exists
+                os.makedirs(os.path.join(self.short_term_path, "archived"), exist_ok=True)
+                
+                # Save to archive
+                with open(archive_path, 'w') as f:
+                    json.dump(memory, f, indent=2)
+        except Exception as e:
+            print(f"Error archiving memory for agent {agent_id}: {e}")
+            # If anything goes wrong during archiving, we'll just skip it
+            pass
+        
+        # Always create a fresh memory file, regardless of what happened above
+        try:
+            with open(file_path, 'w') as f:
+                json.dump({
+                    "current_conversation": {
+                        "partner": partner_id or "unknown_partner",
+                        "exchanges": []
+                    }
+                }, f, indent=2)
+        except Exception as e:
+            print(f"Error creating new memory file for agent {agent_id}: {e}")
+            # If we can't even create a new file, something is seriously wrong
+            raise
+
