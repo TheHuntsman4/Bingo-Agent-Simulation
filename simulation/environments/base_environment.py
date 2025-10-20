@@ -9,7 +9,7 @@ class BaseEnvironment(ABC):
         self.agent_manager = agent_manager
 
     @abstractmethod
-    def get_conversation_pairs(self) -> List[tuple]:
+    def get_conversation_participants(self) -> List[tuple]:
         """Return list of agent pairs that should converse"""
         pass
 

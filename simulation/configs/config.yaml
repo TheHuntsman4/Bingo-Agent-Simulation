@@ -1,8 +1,8 @@
 
 paths:
   base_dir: ${hydra:runtime.cwd}/simulation
-  outputs_dir: outputs
-  agents_dir: agents_personas
+  outputs_dir: outputs/
+  agents_dir: agent_personas
   bingo_board_dir: bingo_boards/input
   bingo_output_dir: bingo_boards_output
   bingo_master_file: bingo_boards/alumni-simple-boards.json
@@ -11,6 +11,9 @@ paths:
   short_term_memories: short_term
 
 debug: true
+
+notes: Running with 10 agensts time dependent with yaml personality files.
+api_key_name : GOOGLE_API_KEY
 
 hydra:
   run:
@@ -28,5 +31,5 @@ defaults:
 
 
 experiment: 
-  max_agents: 10
+  max_agents: 4
   experiment_id: null

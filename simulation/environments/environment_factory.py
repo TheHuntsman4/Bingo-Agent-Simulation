@@ -3,7 +3,7 @@ from typing import Dict, Type
 
 from .base_environment import BaseEnvironment
 from .random_pairs import RandomPairsEnvironment
-from .time_dependent import TimeDependentEnvironment
+from .time_dependent.time_dependent import TimeDependentEnvironment
 from .test_environment import TestEnvironment
 from core.agent_manager import AgentManager
 

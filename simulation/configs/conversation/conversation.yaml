@@ -2,5 +2,5 @@ conversation:
   max_total_conversations: 10
   turns_per_conversation: 12
   digest:
-    max_retries: 3
-    delay: 1 
+    max_retries: 6
+    delay: 5
