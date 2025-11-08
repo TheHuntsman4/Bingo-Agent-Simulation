@@ -3,7 +3,7 @@ import random
 from omegaconf import DictConfig
 from core.agent_manager import AgentManager
 from core.memory_manager import MemoryManager
-from ..base_environment import BaseEnvironment
+from core.base_environment import BaseEnvironment
 from .agent_state import AgentState
 from .pairing_manager import ConversationPairingManager
 from .state_manager import ConversationStateManager
