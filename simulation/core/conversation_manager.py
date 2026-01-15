@@ -8,7 +8,7 @@ from utils.log_memory import log_conversation, generate_conversation_id, digest_
 from core.agent_manager import AgentManager
 from core.bingo_manager import BingoManager
 from core.memory_manager import MemoryManager
-from environments.base_environment import BaseEnvironment
+from core.base_environment import BaseEnvironment
 
 class ConversationManager:
     def __init__(self, cfg: DictConfig, agent_manager: AgentManager, bingo_manager: BingoManager, environment: BaseEnvironment, token_counter=None):

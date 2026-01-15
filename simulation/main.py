@@ -9,7 +9,7 @@ import time
 from core.agent_manager import AgentManager
 from core.bingo_manager import BingoManager
 from core.conversation_manager import ConversationManager
-from environments.environment_factory import EnvironmentFactory
+from core.environment_factory import EnvironmentFactory
 
 @hydra.main(version_base=None, config_path="configs", config_name="config")
 def main(cfg: DictConfig) -> None:
